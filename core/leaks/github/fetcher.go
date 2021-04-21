@@ -2,9 +2,14 @@ package github
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 
+	"github.com/megamon/core/config"
+	"github.com/megamon/core/leaks/db"
+	"github.com/megamon/core/leaks/helpers"
 	"github.com/megamon/core/leaks/stage"
 )
 
@@ -25,19 +30,82 @@ func buildFetchRequest(url, token string) (*http.Request, error) {
 
 //FetchStage struct for the interface
 type FetchStage struct {
+	ReportInfo map[int]helpers.Report
+	Manager    db.Manager
 }
 
 //BuildRequests : generate search requests
-func (s *FetchStage) BuildRequests() (res chan stage.Request, err error) {
+func (s *FetchStage) BuildRequests() (reqQueue chan stage.Request, err error) {
+	tokens := config.Settings.Github.Tokens
+	reports, err := s.Manager.SelectReportByStatus("github", "processing")
+	if err != nil {
+		return
+	}
+
+	for id, report := range reports {
+		s.ReportInfo[id] = report
+		var gitSearchItem GitSearchItem
+		err = json.Unmarshal(report.Data, &gitSearchItem)
+		if err != nil {
+			logErr(err)
+			continue
+		}
+
+		token := tokens[id%len(tokens)]
+		req, err := buildFetchRequest(gitSearchItem.GitURL, token)
+
+		if err != nil {
+			logErr(err)
+			continue
+		}
+		reqQueue <- stage.Request{ID: id, Req: req}
+	}
 	return
 }
 
 //CheckResponse : check reponse
 func (s *FetchStage) CheckResponse(resp stage.Response, reqCount int) (res int) {
-	return
+	switch resp.Resp.StatusCode {
+	case 200:
+		return stage.OK
+	case 403:
+		fallthrough
+	default:
+		if reqCount < stage.MAXRETRIES {
+			return stage.WAIT
+		}
+		return stage.SKIP
+	}
 }
 
 //ProcessResponse : process search response
-func (s *FetchStage) ProcessResponse(resp []byte) (err error) {
+func (s *FetchStage) ProcessResponse(resp []byte, RequestID int) (err error) {
+	var gitFetchItem GitFetchItem
+	err = json.Unmarshal(resp, &gitFetchItem)
+	if err != nil {
+		logErr(err)
+		return
+	}
+
+	var decoded []byte
+	if gitFetchItem.Encoding == "base64" {
+		/* Here is some magick: it seems that json automatically decode base64 encoding... */
+		decoded = gitFetchItem.Content
+
+	} else {
+		err = fmt.Errorf("Fetcher.ProcessResponse: Unknown encoding: %s", gitFetchItem.Encoding)
+		logErr(err)
+		return
+	}
+
+	filePrefix := config.Settings.LeakGlobals.ContentDir
+	filename := fmt.Sprintf("%s%x", filePrefix, s.ReportInfo[RequestID].ShaHash)
+
+	err = ioutil.WriteFile(filename, decoded, 0644)
+	if err != nil {
+		logErr(err)
+		return
+	}
+
 	return
 }

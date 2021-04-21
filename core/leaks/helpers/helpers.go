@@ -26,3 +26,7 @@ type TextFragment struct {
 	ShaHash  int64   `json:"sha1"`
 	Keywords [][]int `json:"keywords"`
 }
+
+func logErr(err error){
+	
+}

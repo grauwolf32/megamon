@@ -1,40 +1,15 @@
 package stage
 
 import (
-	"compress/gzip"
 	"context"
-	"io"
 	"io/ioutil"
 	"net"
-	"net/http"
 	"strconv"
+	"sync"
 	"time"
+
+	"github.com/megamon/core/utils"
 )
-
-func doRequest(req *http.Request) (resp *http.Response, err error) {
-	client := http.Client{
-		Timeout: time.Duration(5 * time.Second),
-	}
-
-	resp, err = client.Do(req)
-	return resp, err
-}
-
-func getBodyReader(resp *http.Response) (bodyReader io.ReadCloser, err error) {
-	switch resp.Header.Get("Content-Encoding") {
-	case "gzip":
-		bodyReader, err = gzip.NewReader(resp.Body)
-
-	default:
-		bodyReader = resp.Body
-	}
-
-	if err != nil {
-		resp.Body.Close()
-	}
-
-	return bodyReader, err
-}
 
 //DoRequests : common part of leak search
 func DoRequests(ctx context.Context, stage *Interface, reqQueue chan Request, rl RateLimiter, responses chan Response) {
@@ -44,7 +19,7 @@ func DoRequests(ctx context.Context, stage *Interface, reqQueue chan Request, rl
 
 	DOREQUEST:
 		for {
-			httpResp, rErr := doRequest(r.Req)
+			httpResp, rErr := utils.DoRequest(r.Req)
 			reqCount[r.ID]++
 
 			if rErr != nil {
@@ -94,7 +69,7 @@ func DoRequests(ctx context.Context, stage *Interface, reqQueue chan Request, rl
 //ProcessResponses : common part of leak search
 func ProcessResponses(ctx context.Context, stage *Interface, respQueue chan Response) {
 	for resp := range respQueue {
-		bodyReader, err := getBodyReader(resp.Resp)
+		bodyReader, err := utils.GetBodyReader(resp.Resp)
 		if err != nil {
 			logErr(err)
 			continue
@@ -127,17 +102,31 @@ func RunStage(stage *Interface, limiter RateLimiter, nRequestWorkers, nProcessWo
 	respQueue := make(chan Response, MAXCHANCAP)
 	ctx := context.Background()
 
+	var wgRequests sync.WaitGroup
+	var wg sync.WaitGroup
+
 	if err != nil {
 		return
 	}
 
 	for i := 0; i < nRequestWorkers; i++ {
-		go DoRequests(ctx, stage, reqQueue, limiter, respQueue)
+		wgRequests.Add(1)
+		go func() {
+			defer wgRequests.Done()
+			DoRequests(ctx, stage, reqQueue, limiter, respQueue)
+		}()
 	}
 
 	for i := 0; i < nProcessWorkers; i++ {
-		go ProcessResponses(ctx, stage, respQueue)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			ProcessResponses(ctx, stage, respQueue)
+		}()
 	}
 
+	wgRequests.Wait()
+	close(reqQueue)
+	wg.Wait()
 	return
 }

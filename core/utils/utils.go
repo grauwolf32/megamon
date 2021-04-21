@@ -1,11 +1,14 @@
 package utils
 
 import (
+	"compress/gzip"
 	"encoding/json"
 	"io"
 	"log"
+	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"../config"
 )
@@ -54,6 +57,33 @@ func ReadFile(filename string) (fileData []byte, err error) {
 
 	}
 	return
+}
+
+//DoRequest : do http request
+func DoRequest(req *http.Request) (resp *http.Response, err error) {
+	client := http.Client{
+		Timeout: time.Duration(5 * time.Second),
+	}
+
+	resp, err = client.Do(req)
+	return resp, err
+}
+
+//GetBodyReader : body reader for response with gzip/text encoding
+func GetBodyReader(resp *http.Response) (bodyReader io.ReadCloser, err error) {
+	switch resp.Header.Get("Content-Encoding") {
+	case "gzip":
+		bodyReader, err = gzip.NewReader(resp.Body)
+
+	default:
+		bodyReader = resp.Body
+	}
+
+	if err != nil {
+		resp.Body.Close()
+	}
+
+	return bodyReader, err
 }
 
 //InitConfig : Read file with settings and parse it

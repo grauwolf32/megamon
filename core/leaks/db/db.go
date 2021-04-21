@@ -113,13 +113,14 @@ func (manager *Manager) SelectReportByID(ID int) (reports []helpers.Report, err 
 		if err != nil {
 			return
 		}
+		reports = append(reports, rep)
 	}
 
 	return
 }
 
 //SelectReportByStatus : select report by it's type & status
-func (manager *Manager) SelectReportByStatus(reportType, status string) (err error) {
+func (manager *Manager) SelectReportByStatus(reportType, status string) (reports []helpers.Report, err error) {
 	query := "SELECT id, type, status, data, time FROM " + ReportTable + " WHERE type=$1 AND status=$2;"
 	rows, err := manager.Database.Query(query, reportType, status)
 	if err != nil {
@@ -133,8 +134,17 @@ func (manager *Manager) SelectReportByStatus(reportType, status string) (err err
 		if err != nil {
 			return
 		}
+		reports = append(reports, rep)
 	}
 
+	return
+}
+
+//CheckReportDuplicate : Check for report with the same hash
+func (manager *Manager) CheckReportDuplicate(ShaHash int64) (exist bool, err error) {
+	query := "SELECT EXIST(SELECT id FROM " + ReportTable + " WHERE shahash=$1);"
+	row := manager.Database.QueryRow(query, ShaHash)
+	err = row.Scan(&exist)
 	return
 }
 
