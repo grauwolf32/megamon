@@ -59,23 +59,20 @@ func (frag *Fragment) AlignToRunes(text string) (err error) {
 
 //ConvertToRunes : change length of the fragment & its aligment to fit runes
 func (frag *Fragment) ConvertToRunes(text string) (err error) {
+	if frag.Offset >= len(text) {
+		err = fmt.Errorf("Length of the text is less/eq than the offset of the fragment")
+		return err
+	}
+
+	textBeginning := text[:frag.Offset]
 	textFrag, err := frag.Apply(text)
 
 	if err != nil {
 		return
 	}
 
-	if check, _ := utf8.DecodeRuneInString(textFrag); check == utf8.RuneError {
-		err = fmt.Errorf("First rune decode error")
-		return
-	}
-
-	if check, _ := utf8.DecodeLastRuneInString(textFrag); check == utf8.RuneError {
-		err = fmt.Errorf("Last rune decode error")
-		return
-	}
-
 	frag.Length = utf8.RuneCountInString(textFrag)
+	frag.Offset = utf8.RuneCountInString(textBeginning)
 	return
 }
 
@@ -123,7 +120,8 @@ func le(f1, f2 *Fragment) bool {
 	return f1.Offset <= f2.Offset
 }
 
-func merge(f1, f2 []Fragment) []Fragment {
+//Merge sort of two list of fragments
+func Merge(f1, f2 []Fragment) []Fragment {
 	f1Len := len(f1)
 	f2Len := len(f2)
 
@@ -179,9 +177,9 @@ func MergeFragments(frags [][]Fragment, maxFragLen int) []Fragment {
 		return join(frags[0], maxFragLen)
 	}
 
-	merged := merge(frags[0], frags[1])
+	merged := Merge(frags[0], frags[1])
 	for i := 2; i < len(frags); i++ {
-		merged = merge(merged, frags[i])
+		merged = Merge(merged, frags[i])
 	}
 
 	return join(merged, maxFragLen)
@@ -227,4 +225,28 @@ func GetKeywordContext(text string, desiredLen int, frags []Fragment) []Fragment
 		frags[i].AlignToRunes(text)
 	}
 	return frags
+}
+
+//GetKeywordsInFragments : return indices of keywords that are inside of fragments
+func GetKeywordsInFragments(keywords, fragments []Fragment) (result map[int][]int) {
+	result = make(map[int][]int)
+	for fID := 0; fID < len(fragments); fID++ {
+		frag := fragments[fID]
+		kwID := 0
+
+		for kwID < len(keywords) && keywords[kwID].Offset < frag.Offset {
+			kwID++
+		}
+
+		for ; kwID < len(keywords); kwID++ {
+			keyword := keywords[kwID]
+			if keyword.Offset+keyword.Length <= frag.Offset+frag.Length {
+				result[fID] = append(result[fID], kwID)
+			} else {
+				break
+			}
+		}
+	}
+
+	return result
 }

@@ -191,7 +191,7 @@ func TestMerge1(t *testing.T) {
 		Fragment{7, 10},
 	}
 
-	f := merge(f1, f2)
+	f := Merge(f1, f2)
 	expected := "[{0 10} {2 10} {5 10} {7 10}]"
 	if fmt.Sprintf("%v", f) != expected {
 		t.Errorf("Wrong merge: expected: %s got %v", expected, f)
@@ -211,7 +211,7 @@ func TestMerge2(t *testing.T) {
 		Fragment{7, 10},
 	}
 
-	f := merge(f1, f2)
+	f := Merge(f1, f2)
 	expected := "[{0 10} {2 10} {5 10} {7 10} {12 10}]"
 	if fmt.Sprintf("%v", f) != expected {
 		t.Errorf("Wrong merge: expected: %s got %v", expected, f)

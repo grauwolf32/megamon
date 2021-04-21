@@ -28,6 +28,12 @@ const (
 
 	//MAXCHANCAP : max channel capacity
 	MAXCHANCAP = 4096
+
+	//CONTEXTLEN : desired length of keyword context
+	CONTEXTLEN = 480
+
+	//MAXCONTEXTLEN : max length of keyword context
+	MAXCONTEXTLEN = 640
 )
 
 //Request : basic request type
@@ -42,11 +48,19 @@ type Response struct {
 	Resp     *http.Response
 }
 
-//Interface common pipeline
-type Interface interface {
+//MiddlewareInterface common pipeline
+type MiddlewareInterface interface {
+	Init()
+	Close()
 	BuildRequests() (res chan Request, err error)
 	CheckResponse(resp Response, reqCount int) (res int)
-	ProcessResponse(resp []byte) (err error)
+	ProcessResponse(resp []byte, RequesID int) (err error)
+}
+
+//Interface : common pipeline
+type Interface interface {
+	MiddlewareInterface
+	GetTextsToProcess() []string
 }
 
 //RateLimiter : limits requests rate

@@ -9,7 +9,6 @@ import (
 
 	"github.com/megamon/core/config"
 	"github.com/megamon/core/leaks/db"
-	"github.com/megamon/core/leaks/helpers"
 	"github.com/megamon/core/leaks/stage"
 )
 
@@ -30,8 +29,13 @@ func buildFetchRequest(url, token string) (*http.Request, error) {
 
 //FetchStage struct for the interface
 type FetchStage struct {
-	ReportInfo map[int]helpers.Report
-	Manager    db.Manager
+	ReportHashes map[int]int64
+	Manager      db.Manager
+}
+
+//Init : constructor
+func (s *FetchStage) Init() {
+	s.ReportHashes = make(map[int]int64)
 }
 
 //BuildRequests : generate search requests
@@ -43,7 +47,7 @@ func (s *FetchStage) BuildRequests() (reqQueue chan stage.Request, err error) {
 	}
 
 	for id, report := range reports {
-		s.ReportInfo[id] = report
+		s.ReportHashes[id] = report.ShaHash
 		var gitSearchItem GitSearchItem
 		err = json.Unmarshal(report.Data, &gitSearchItem)
 		if err != nil {
@@ -99,7 +103,7 @@ func (s *FetchStage) ProcessResponse(resp []byte, RequestID int) (err error) {
 	}
 
 	filePrefix := config.Settings.LeakGlobals.ContentDir
-	filename := fmt.Sprintf("%s%x", filePrefix, s.ReportInfo[RequestID].ShaHash)
+	filename := fmt.Sprintf("%s%x", filePrefix, s.ReportHashes[RequestID])
 
 	err = ioutil.WriteFile(filename, decoded, 0644)
 	if err != nil {

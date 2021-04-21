@@ -114,7 +114,7 @@ func TestTextFragmentOps1(t *testing.T) {
 	tf.ReportID = 111
 	tf.RejectID = 1
 	tf.Text = "test fragment"
-	tf.ShaHash = 1234
+	tf.ShaHash = [20]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20}
 	tf.Keywords = [][]int{[]int{1, 2}, []int{3, 4}}
 
 	ID, err := manager.InsertTextFragment(&tf)

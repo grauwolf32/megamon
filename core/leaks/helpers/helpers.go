@@ -19,14 +19,10 @@ type RejectRule struct {
 
 //TextFragment : fragments of text with keywords
 type TextFragment struct {
-	ID       int     `json:"id"`
-	ReportID int     `json:"report_id"`
-	RejectID int     `json:"reject_id"`
-	Text     string  `json:"text"`
-	ShaHash  int64   `json:"sha1"`
-	Keywords [][]int `json:"keywords"`
-}
-
-func logErr(err error){
-	
+	ID       int      `json:"id"`
+	ReportID int      `json:"report_id"`
+	RejectID int      `json:"reject_id"`
+	Text     string   `json:"text"`
+	ShaHash  [20]byte `json:"sha1"`
+	Keywords [][]int  `json:"keywords"`
 }
