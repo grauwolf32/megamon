@@ -4,10 +4,9 @@ import (
 	"os"
 	"testing"
 
-	"../helpers"
-
-	"../../config"
-	"../../utils"
+	"github.com/megamon/core/config"
+	"github.com/megamon/core/leaks/helpers"
+	"github.com/megamon/core/utils"
 )
 
 var testFragment string
