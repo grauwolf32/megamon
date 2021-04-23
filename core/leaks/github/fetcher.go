@@ -29,13 +29,13 @@ func buildFetchRequest(url, token string) (*http.Request, error) {
 
 //FetchStage struct for the interface
 type FetchStage struct {
-	ReportHashes map[int]int64
+	ReportHashes map[int][20]byte
 	Manager      db.Manager
 }
 
 //Init : constructor
 func (s *FetchStage) Init() {
-	s.ReportHashes = make(map[int]int64)
+	s.ReportHashes = make(map[int][20]byte)
 }
 
 //BuildRequests : generate search requests

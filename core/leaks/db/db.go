@@ -2,6 +2,7 @@ package db
 
 import (
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 
@@ -23,13 +24,14 @@ func (manager *Manager) Init(conn *sql.DB) {
 func (manager *Manager) InsertTextFragment(frag *helpers.TextFragment) (ID int, err error) {
 	query := "INSERT INTO " + FragmentTable + " (content, reject_id, report_id, shahash, keywords) VALUES ($1, $2, $3, $4, $5) RETURNING id;"
 	kwData, err := json.Marshal(frag.Keywords)
+	shaHash := fmt.Sprintf("%x", string(frag.ShaHash[:]))
 	content := []byte(frag.Text)
 
 	if err != nil {
 		return 0, err
 	}
 
-	err = manager.Database.QueryRow(query, content, frag.RejectID, frag.ReportID, frag.ShaHash, kwData).Scan(&ID)
+	err = manager.Database.QueryRow(query, content, frag.RejectID, frag.ReportID, shaHash, kwData).Scan(&ID)
 	return
 }
 
@@ -60,8 +62,9 @@ func (manager *Manager) SelectTextFragment(field string, value int) (frags []hel
 		var frag helpers.TextFragment
 		var content []byte
 		var kwData []byte
+		var shaHashStr string
 
-		err = rows.Scan(&frag.ID, &content, &frag.RejectID, &frag.ReportID, &frag.ShaHash, &kwData)
+		err = rows.Scan(&frag.ID, &content, &frag.RejectID, &frag.ReportID, &shaHashStr, &kwData)
 		if err != nil {
 			return
 		}
@@ -70,6 +73,13 @@ func (manager *Manager) SelectTextFragment(field string, value int) (frags []hel
 		if err != nil {
 			return
 		}
+
+		shaHash, DecErr := hex.DecodeString(shaHashStr)
+		if DecErr != nil {
+			return
+		}
+
+		copy(frag.ShaHash[:], shaHash[:20])
 		frag.Text = string(content)
 		frags = append(frags, frag)
 	}
@@ -79,7 +89,10 @@ func (manager *Manager) SelectTextFragment(field string, value int) (frags []hel
 //InsertReport : inser report to db
 func (manager *Manager) InsertReport(report helpers.Report) (ID int, err error) {
 	query := "INSERT INTO " + ReportTable + " (type, status, data, time) VALUES ($1, $2, $3, $4) RETURNING id;"
-	err = manager.Database.QueryRow(query, report.ShaHash, report.Status, report.Data, report.Time).Scan(&ID)
+	shaHash := fmt.Sprintf("%x", string(report.ShaHash[:]))
+	fmt.Printf("%s", shaHash)
+
+	err = manager.Database.QueryRow(query, shaHash, report.Status, report.Data, report.Time).Scan(&ID)
 	return
 }
 
@@ -99,7 +112,7 @@ func (manager *Manager) DeleteReportByID(ID int) (err error) {
 
 //SelectReportByID : select report from db
 func (manager *Manager) SelectReportByID(ID int) (reports []helpers.Report, err error) {
-	query := "SELECT id, type, status, data, time FROM " + ReportTable + " WHERE id=$1;"
+	query := "SELECT id, type, status, data, shahash, time FROM " + ReportTable + " WHERE id=$1;"
 
 	rows, err := manager.Database.Query(query, ID)
 	if err != nil {
@@ -109,10 +122,19 @@ func (manager *Manager) SelectReportByID(ID int) (reports []helpers.Report, err 
 	defer rows.Close()
 	for rows.Next() {
 		var rep helpers.Report
-		err = rows.Scan(&rep.ID, &rep.Type, &rep.Status, &rep.Data, &rep.Time)
+		var shaHashStr string
+
+		err = rows.Scan(&rep.ID, &rep.Type, &rep.Status, &rep.Data, &shaHashStr, &rep.Time)
 		if err != nil {
 			return
 		}
+
+		shaHash, DecErr := hex.DecodeString(shaHashStr)
+		if DecErr != nil {
+			return
+		}
+
+		copy(rep.ShaHash[:], shaHash[:20])
 		reports = append(reports, rep)
 	}
 
@@ -121,7 +143,7 @@ func (manager *Manager) SelectReportByID(ID int) (reports []helpers.Report, err 
 
 //SelectReportByStatus : select report by it's type & status
 func (manager *Manager) SelectReportByStatus(reportType, status string) (reports []helpers.Report, err error) {
-	query := "SELECT id, type, status, data, time FROM " + ReportTable + " WHERE type=$1 AND status=$2;"
+	query := "SELECT id, type, status, data, shahash, time FROM " + ReportTable + " WHERE type=$1 AND status=$2;"
 	rows, err := manager.Database.Query(query, reportType, status)
 	if err != nil {
 		return
@@ -130,10 +152,19 @@ func (manager *Manager) SelectReportByStatus(reportType, status string) (reports
 	defer rows.Close()
 	for rows.Next() {
 		var rep helpers.Report
-		err = rows.Scan(&rep.ID, &rep.Type, &rep.Status, &rep.Data, &rep.Time)
+		var shaHashStr string
+
+		err = rows.Scan(&rep.ID, &rep.Type, &rep.Status, &rep.Data, &shaHashStr, &rep.Time)
 		if err != nil {
 			return
 		}
+
+		shaHash, DecErr := hex.DecodeString(shaHashStr)
+		if DecErr != nil {
+			return
+		}
+
+		copy(rep.ShaHash[:], shaHash[:20])
 		reports = append(reports, rep)
 	}
 
@@ -141,9 +172,11 @@ func (manager *Manager) SelectReportByStatus(reportType, status string) (reports
 }
 
 //CheckReportDuplicate : Check for report with the same hash
-func (manager *Manager) CheckReportDuplicate(ShaHash int64) (exist bool, err error) {
+func (manager *Manager) CheckReportDuplicate(ShaHash []byte) (exist bool, err error) {
 	query := "SELECT EXIST(SELECT id FROM " + ReportTable + " WHERE shahash=$1);"
-	row := manager.Database.QueryRow(query, ShaHash)
+	shaHash := fmt.Sprintf("%x", ShaHash)
+
+	row := manager.Database.QueryRow(query, shaHash)
 	err = row.Scan(&exist)
 	return
 }

@@ -2,12 +2,12 @@ package helpers
 
 //Report : report structure
 type Report struct {
-	ID      int    `json:"id"`
-	Type    string `json:"type"`
-	Status  string `json:"status"`
-	ShaHash int64  `json:"sha1"`
-	Data    []byte `json:"data"`
-	Time    int64  `json:"time"`
+	ID      int      `json:"id"`
+	Type    string   `json:"type"`
+	Status  string   `json:"status"`
+	ShaHash [20]byte `json:"sha1"`
+	Data    []byte   `json:"data"`
+	Time    int64    `json:"time"`
 }
 
 //RejectRule : description of reject rule

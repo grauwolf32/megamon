@@ -82,7 +82,7 @@ func DropTable(tableName string, conn *sql.DB) (err error) {
 }
 
 func createFragmentTable(tableName string, conn *sql.DB) (err error) {
-	query := "CREATE TABLE " + tableName + " (id serial, content bytea, reject_id integer, report_id integer, shahash bigint, keywords jsonb);"
+	query := "CREATE TABLE " + tableName + " (id serial, content bytea, reject_id integer, report_id integer, shahash varchar, keywords jsonb);"
 	_, err = conn.Exec(query)
 	return
 }

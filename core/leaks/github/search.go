@@ -2,11 +2,11 @@ package github
 
 import (
 	"bytes"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/megamon/core/config"
@@ -154,7 +154,7 @@ func (s *SearchStage) ProcessResponse(resp []byte) (err error) {
 	}
 
 	for _, gihubResponseItem := range githubResponse.Items {
-		ShaHash, err := strconv.ParseInt(gihubResponseItem.ShaHash, 16, 64)
+		ShaHash, err := hex.DecodeString(gihubResponseItem.ShaHash)
 		exist, err := s.Manager.CheckReportDuplicate(ShaHash)
 
 		if err != nil {
@@ -170,7 +170,7 @@ func (s *SearchStage) ProcessResponse(resp []byte) (err error) {
 		report.Type = "github"
 		report.Status = "processing"
 		report.Time = time.Now().Unix()
-		report.ShaHash = ShaHash
+		copy(report.ShaHash[:], ShaHash[:20])
 
 		if err != nil {
 			return err
