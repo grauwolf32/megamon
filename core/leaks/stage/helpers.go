@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/megamon/core/leaks/helpers"
 	"github.com/megamon/core/utils"
 )
 
@@ -48,6 +49,12 @@ type Response struct {
 	Resp     *http.Response
 }
 
+//ReportText : text with report ID to fragmentize
+type ReportText struct {
+	ReportID int
+	Text     string
+}
+
 //MiddlewareInterface common pipeline
 type MiddlewareInterface interface {
 	Init()
@@ -60,7 +67,8 @@ type MiddlewareInterface interface {
 //Interface : common pipeline
 type Interface interface {
 	MiddlewareInterface
-	GetTextsToProcess() []string
+	GetTextsToProcess() ([]ReportText, error)
+	ProcessTextFragment(fragment helpers.TextFragment) error
 }
 
 //RateLimiter : limits requests rate

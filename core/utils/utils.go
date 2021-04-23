@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"../config"
+	"github.com/megamon/core/config"
 )
 
 var (

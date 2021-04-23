@@ -147,6 +147,24 @@ func Merge(f1, f2 []Fragment) []Fragment {
 	return f
 }
 
+//MergeSort : merge of sorted slices of fragments
+func MergeSort(frags [][]Fragment) (merged []Fragment) {
+	if len(frags) == 0 {
+		return
+	}
+
+	if len(frags) == 1 {
+		return frags[0]
+	}
+
+	merged = Merge(frags[0], frags[1])
+
+	for i := 2; i < len(frags); i++ {
+		merged = Merge(merged, frags[i])
+	}
+	return
+}
+
 func join(frags []Fragment, maxFragLen int) (f []Fragment) {
 	if len(frags) < 2 {
 		return frags
@@ -170,18 +188,7 @@ func join(frags []Fragment, maxFragLen int) (f []Fragment) {
 
 //MergeFragments : merge fragments optimal way
 func MergeFragments(frags [][]Fragment, maxFragLen int) []Fragment {
-	if len(frags) == 0 {
-		return []Fragment{}
-	}
-	if len(frags) == 1 {
-		return join(frags[0], maxFragLen)
-	}
-
-	merged := Merge(frags[0], frags[1])
-	for i := 2; i < len(frags); i++ {
-		merged = Merge(merged, frags[i])
-	}
-
+	merged := MergeSort(frags)
 	return join(merged, maxFragLen)
 }
 
@@ -213,6 +220,8 @@ func GetKeywordContext(text string, desiredLen int, frags []Fragment) []Fragment
 
 		if rightBorder >= len(text) {
 			extra := rightBorder - len(text) + 1
+			rightBorder = len(text) - 1
+
 			if leftBorder-extra > 0 {
 				leftBorder = leftBorder - extra
 			} else {

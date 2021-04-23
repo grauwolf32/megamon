@@ -2,16 +2,12 @@ package stage
 
 import (
 	"context"
-	"crypto/sha1"
 	"io/ioutil"
 	"net"
 	"strconv"
 	"sync"
 	"time"
 
-	"github.com/megamon/core/config"
-	"github.com/megamon/core/leaks/fragment"
-	"github.com/megamon/core/leaks/helpers"
 	"github.com/megamon/core/utils"
 )
 
@@ -101,10 +97,9 @@ func ProcessResponses(ctx context.Context, stage *MiddlewareInterface, respQueue
 }
 
 //RunMiddlewareStage : Middleware processing function
-func RunMiddlewareStage(stage *MiddlewareInterface, limiter RateLimiter, nRequestWorkers, nProcessWorkers int) (err error) {
+func RunMiddlewareStage(ctx context.Context, stage *MiddlewareInterface, limiter RateLimiter, nRequestWorkers, nProcessWorkers int) (err error) {
 	reqQueue, err := (*stage).BuildRequests()
 	respQueue := make(chan Response, MAXCHANCAP)
-	ctx := context.Background()
 
 	var wgRequests sync.WaitGroup
 	var wg sync.WaitGroup
@@ -136,61 +131,9 @@ func RunMiddlewareStage(stage *MiddlewareInterface, limiter RateLimiter, nReques
 }
 
 //RunStage : Main processing function
-func RunStage(stage *Interface, limiter RateLimiter, nRequestWorkers, nProcessWorkers int) (err error) {
+func RunStage(ctx context.Context, stage *Interface, limiter RateLimiter, nRequestWorkers, nProcessWorkers, nFragmentizeWorkers int) (err error) {
 	middleware := (*stage).(MiddlewareInterface)
-	RunMiddlewareStage(&middleware, limiter, nRequestWorkers, nProcessWorkers)
-	keywords := config.Settings.LeakGlobals.Keywords
-
-	if len(keywords) == 0 {
-		return
-	}
-
-	for _, text := range (*stage).GetTextsToProcess() {
-		var kwContextFragments [][]fragment.Fragment
-		var kwFragments [][]fragment.Fragment
-
-		for _, keyword := range keywords {
-			kwFragment := fragment.GetKeywordFragments(text, keyword)
-			kwContextFragment := fragment.GetKeywordContext(text, CONTEXTLEN, kwFragment)
-			kwContextFragments = append(kwContextFragments, kwContextFragment)
-			kwFragments = append(kwFragments)
-		}
-
-		mergedContexts := fragment.MergeFragments(kwContextFragments, MAXCONTEXTLEN)
-
-		mergedKeywords := kwFragments[0]
-		for i := 1; i < len(kwFragments); i++ {
-			mergedKeywords = fragment.Merge(mergedKeywords, kwFragments[i])
-		}
-
-		kwInFrags := fragment.GetKeywordsInFragments(mergedKeywords, mergedContexts)
-		for id := range kwInFrags {
-			var textFragment helpers.TextFragment
-			keywords := kwInFrags[id]
-
-			frag := mergedContexts[id]
-			fragText, err := frag.Apply(text)
-			if err != nil {
-				logErr(err)
-				continue
-			}
-
-			textFragment.Text = fragText
-			textFragment.ShaHash = sha1.Sum([]byte(fragText))
-
-			for _, kwID := range keywords {
-				kw := mergedKeywords[kwID]
-				err = kw.ConvertToRunes(text)
-				if err != nil {
-					logErr(err)
-					continue
-				}
-				textFragment.Keywords = append(textFragment.Keywords, []int{kw.Offset - frag.Offset, kw.Length})
-			}
-			
-		}
-
-	}
-
+	RunMiddlewareStage(ctx, &middleware, limiter, nRequestWorkers, nProcessWorkers)
+	Fragmentize(ctx, stage, nFragmentizeWorkers)
 	return
 }
