@@ -30,6 +30,7 @@ func buildFetchRequest(url, token string) (*http.Request, error) {
 //FetchStage struct for the interface
 type FetchStage struct {
 	ReportHashes map[int][20]byte
+	ReportIDs    map[int]int
 	Manager      models.Manager
 }
 
@@ -56,6 +57,8 @@ func (s *FetchStage) BuildRequests() (reqQueue chan stage.Request, err error) {
 
 	for id, report := range reports {
 		s.ReportHashes[id] = report.ShaHash
+		s.ReportIDs[id] = report.ID
+
 		var gitSearchItem GitSearchItem
 		err = json.Unmarshal(report.Data, &gitSearchItem)
 		if err != nil {
@@ -90,6 +93,11 @@ func (s *FetchStage) CheckResponse(resp stage.Response, reqCount int) (res int) 
 	}
 }
 
+//GetDBManager : stage interface realization
+func (s *FetchStage) GetDBManager() models.Manager {
+	return s.Manager
+}
+
 //ProcessResponse : process search response
 func (s *FetchStage) ProcessResponse(resp []byte, RequestID int) (err error) {
 	var gitFetchItem GitFetchItem
@@ -119,13 +127,13 @@ func (s *FetchStage) ProcessResponse(resp []byte, RequestID int) (err error) {
 		return
 	}
 
-	//TODO Update report status
-
+	reportID := s.ReportIDs[RequestID]
+	s.Manager.UpdateReportStatus(reportID, "fetched")
 	return
 }
 
 //GetTextsToProcess : produce report texts
-//TODO : heavy data; may be return channel
+//TODO : heavy data; may be better to return channel
 func (s *FetchStage) GetTextsToProcess() (reportTexts []stage.ReportText, err error) {
 	reports, err := s.Manager.SelectReportByStatus("github", "fetched")
 	filePrefix := utils.Settings.LeakGlobals.ContentDir
@@ -146,5 +154,18 @@ func (s *FetchStage) GetTextsToProcess() (reportTexts []stage.ReportText, err er
 		reportTexts = append(reportTexts, stage.ReportText{ReportID: report.ID, Text: string(fileData)})
 	}
 
+	return
+}
+
+//ProcessTextFragment : stage interface realization
+func (s *FetchStage) ProcessTextFragment(fragment models.TextFragment) (err error) {
+	exist, err := s.Manager.CheckTextFragmentDuplicate(fragment.ShaHash)
+	if err != nil {
+		return
+	}
+	if !exist {
+		_, err = s.Manager.InsertTextFragment(&fragment)
+		return
+	}
 	return
 }

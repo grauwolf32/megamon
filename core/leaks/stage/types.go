@@ -1,6 +1,7 @@
 package stage
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"time"
@@ -77,7 +78,7 @@ type ReportText struct {
 
 //MiddlewareInterface common pipeline
 type MiddlewareInterface interface {
-	Init()
+	Init() (err error)
 	Close()
 	GetDBManager() models.Manager
 	BuildRequests() (res chan Request, err error)
@@ -94,7 +95,7 @@ type Interface interface {
 
 //RateLimiter : limits requests rate
 type RateLimiter interface {
-	Wait(resp *http.Response, t time.Time) interface{}
+	Wait(ctx context.Context, resp *http.Response, t time.Time) interface{}
 }
 
 func logErr(err error) {

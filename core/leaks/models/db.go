@@ -116,6 +116,16 @@ func (manager *Manager) SelectTextFragment(field string, value int) (frags []Tex
 	return
 }
 
+//CheckTextFragmentDuplicate : Check for text fragment with the same hash
+func (manager *Manager) CheckTextFragmentDuplicate(ShaHash [20]byte) (exist bool, err error) {
+	query := "SELECT EXIST(SELECT id FROM " + FragmentTable + " WHERE shahash=$1);"
+	shaHash := fmt.Sprintf("%x", ShaHash[:])
+
+	row := manager.Database.QueryRow(query, shaHash)
+	err = row.Scan(&exist)
+	return
+}
+
 //InsertReport : inser report to db
 func (manager *Manager) InsertReport(report Report) (ID int, err error) {
 	query := "INSERT INTO " + ReportTable + " (type, status, data, time) VALUES ($1, $2, $3, $4) RETURNING id;"
@@ -130,6 +140,13 @@ func (manager *Manager) InsertReport(report Report) (ID int, err error) {
 func (manager *Manager) UpdateReport(field, queryField string, newValue interface{}, queryValue interface{}) (err error) {
 	query := "UPDATE " + ReportTable + " SET $1=$2 WHERE $3=$4;"
 	_, err = manager.Database.Exec(query, field, newValue, queryField, queryValue)
+	return
+}
+
+//UpdateReportStatus : updates status of the report
+func (manager *Manager) UpdateReportStatus(reportID int, status string) (err error) {
+	query := "UPDATE " + ReportTable + " SET status=$2 WHERE id=$1;"
+	_, err = manager.Database.Exec(query, reportID, status)
 	return
 }
 

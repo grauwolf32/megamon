@@ -12,7 +12,7 @@ import (
 )
 
 //Fragmentize : calculate text fragments and process it
-func Fragmentize(ctx context.Context, stage *Interface, nWorkers int) {
+func Fragmentize(ctx context.Context, stage Interface, nWorkers int) {
 	var wg sync.WaitGroup
 	textQueue := make(chan ReportText, MAXCHANCAP)
 	fragmentQueue := make(chan models.TextFragment, MAXCHANCAP)
@@ -22,7 +22,7 @@ func Fragmentize(ctx context.Context, stage *Interface, nWorkers int) {
 		defer wg.Done()
 		defer close(textQueue)
 
-		reportTexts, err := (*stage).GetTextsToProcess()
+		reportTexts, err := stage.GetTextsToProcess()
 		if err != nil {
 			logErr(err)
 			return
@@ -34,7 +34,7 @@ func Fragmentize(ctx context.Context, stage *Interface, nWorkers int) {
 
 		return
 	}()
-	manager := (*stage).GetDBManager()
+	manager := stage.GetDBManager()
 	keywords, err := manager.SelectAllKeywords()
 
 	if err != nil {
@@ -55,7 +55,7 @@ func Fragmentize(ctx context.Context, stage *Interface, nWorkers int) {
 
 	go func() {
 		for textFragment := range fragmentQueue {
-			err := (*stage).ProcessTextFragment(textFragment)
+			err := stage.ProcessTextFragment(textFragment)
 			if err != nil {
 				logErr(err)
 			}
@@ -194,12 +194,6 @@ func fragmenter(ctx context.Context, textQueue chan ReportText, fragmentQueue ch
 
 			case fragmentQueue <- textFragment:
 			}
-		}
-
-		select {
-		case <-ctx.Done():
-			return
-		default:
 		}
 	}
 

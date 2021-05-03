@@ -50,9 +50,20 @@ type SearchStage struct {
 }
 
 //Init : constructor
-func (s *SearchStage) Init() {
+func (s *SearchStage) Init() (err error) {
 	s.RequestParams = make(map[int]gitRequestParams)
 	//TODO Init Manager
+	return
+}
+
+//Close : destructor
+func (s *SearchStage) Close() {
+	//TODO Close Manager
+}
+
+//GetDBManager : stage interface realization
+func (s *SearchStage) GetDBManager() models.Manager {
+	return s.Manager
 }
 
 //BuildRequests : generate search requests
@@ -143,7 +154,7 @@ func (s *SearchStage) CheckResponse(resp stage.Response, reqCount int) (res int)
 }
 
 //ProcessResponse : process search response
-func (s *SearchStage) ProcessResponse(resp []byte) (err error) {
+func (s *SearchStage) ProcessResponse(resp []byte, requestID int) (err error) {
 	var githubResponse GitSearchAPIResponse
 	err = json.Unmarshal(resp, &githubResponse)
 	if err != nil {

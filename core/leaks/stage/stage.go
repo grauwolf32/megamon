@@ -12,7 +12,7 @@ import (
 )
 
 //DoRequests : common part of leak search
-func DoRequests(ctx context.Context, stage *MiddlewareInterface, reqQueue chan Request, rl RateLimiter, responses chan Response) {
+func DoRequests(ctx context.Context, stage MiddlewareInterface, reqQueue chan Request, rl RateLimiter, responses chan Response) {
 	reqCount := make(map[int]int)
 	var err error
 	for r := range reqQueue {
@@ -37,7 +37,7 @@ func DoRequests(ctx context.Context, stage *MiddlewareInterface, reqQueue chan R
 			}
 
 			resp := Response{r.ID, httpResp}
-			check := (*stage).CheckResponse(resp, reqCount[r.ID])
+			check := stage.CheckResponse(resp, reqCount[r.ID])
 
 			switch check {
 			case OK:
@@ -60,14 +60,14 @@ func DoRequests(ctx context.Context, stage *MiddlewareInterface, reqQueue chan R
 			default:
 			}
 
-			_ = rl.Wait(resp.Resp, time.Now())
+			_ = rl.Wait(ctx, resp.Resp, time.Now())
 
 		}
 	}
 }
 
 //ProcessResponses : common part of leak search
-func ProcessResponses(ctx context.Context, stage *MiddlewareInterface, respQueue chan Response) {
+func ProcessResponses(ctx context.Context, stage MiddlewareInterface, respQueue chan Response) {
 	for resp := range respQueue {
 		bodyReader, err := utils.GetBodyReader(resp.Resp)
 		if err != nil {
@@ -83,7 +83,7 @@ func ProcessResponses(ctx context.Context, stage *MiddlewareInterface, respQueue
 			continue
 		}
 
-		err = (*stage).ProcessResponse(body, resp.RequesID)
+		err = stage.ProcessResponse(body, resp.RequesID)
 		if err != nil {
 			logErr(err)
 		}
@@ -97,8 +97,8 @@ func ProcessResponses(ctx context.Context, stage *MiddlewareInterface, respQueue
 }
 
 //RunMiddlewareStage : Middleware processing function
-func RunMiddlewareStage(ctx context.Context, stage *MiddlewareInterface, limiter RateLimiter, nRequestWorkers, nProcessWorkers int) (err error) {
-	reqQueue, err := (*stage).BuildRequests()
+func RunMiddlewareStage(ctx context.Context, stage MiddlewareInterface, limiter RateLimiter, nRequestWorkers, nProcessWorkers int) (err error) {
+	reqQueue, err := stage.BuildRequests()
 	respQueue := make(chan Response, MAXCHANCAP)
 
 	var wgRequests sync.WaitGroup
@@ -131,9 +131,9 @@ func RunMiddlewareStage(ctx context.Context, stage *MiddlewareInterface, limiter
 }
 
 //RunStage : Main processing function
-func RunStage(ctx context.Context, stage *Interface, limiter RateLimiter, nRequestWorkers, nProcessWorkers, nFragmentizeWorkers int) (err error) {
-	middleware := (*stage).(MiddlewareInterface)
-	RunMiddlewareStage(ctx, &middleware, limiter, nRequestWorkers, nProcessWorkers)
+func RunStage(ctx context.Context, stage Interface, limiter RateLimiter, nRequestWorkers, nProcessWorkers, nFragmentizeWorkers int) (err error) {
+	middleware := stage.(MiddlewareInterface)
+	RunMiddlewareStage(ctx, middleware, limiter, nRequestWorkers, nProcessWorkers)
 	Fragmentize(ctx, stage, nFragmentizeWorkers)
 	return
 }
