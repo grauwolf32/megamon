@@ -79,6 +79,7 @@ type ReportText struct {
 type MiddlewareInterface interface {
 	Init()
 	Close()
+	GetDBManager() models.Manager
 	BuildRequests() (res chan Request, err error)
 	CheckResponse(resp Response, reqCount int) (res int)
 	ProcessResponse(resp []byte, RequesID int) (err error)

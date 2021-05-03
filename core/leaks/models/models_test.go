@@ -12,7 +12,7 @@ var testReport string
 var testRules string
 
 func setup() {
-	utils.InitConfig("../../../config/config.json")
+	utils.InitConfig("../../../config/config.yaml")
 	creds := utils.Settings.DBCredentials
 
 	conn, err := Connect(creds.Name, creds.Password, creds.Database)
@@ -21,40 +21,17 @@ func setup() {
 	FragmentTable = "fragment_test"
 	ReportTable = "report_test"
 	RuleTable = "rules_test"
+	KeywordsTable = "keywords_test"
 
 	if err != nil {
 		panic(err)
 	}
 
-	exist, err := CheckExists(FragmentTable, conn)
+	err = Init(conn)
 	if err != nil {
 		panic(err)
 	}
-	if !exist {
-		if err = createFragmentTable(FragmentTable, conn); err != nil {
-			panic(err)
-		}
-	}
-
-	exist, err = CheckExists(ReportTable, conn)
-	if err != nil {
-		panic(err)
-	}
-	if !exist {
-		if err = createReportTable(ReportTable, conn); err != nil {
-			panic(err)
-		}
-	}
-
-	exist, err = CheckExists(RuleTable, conn)
-	if err != nil {
-		panic(err)
-	}
-	if !exist {
-		if err = createRulesTable(RuleTable, conn); err != nil {
-			panic(err)
-		}
-	}
+	return
 }
 
 func clean() {
@@ -62,16 +39,11 @@ func clean() {
 	conn, err := Connect(creds.Name, creds.Password, creds.Database)
 	defer conn.Close()
 
-	if err = DropTable(FragmentTable, conn); err != nil {
-		panic(err)
-	}
-
-	if err = DropTable(ReportTable, conn); err != nil {
-		panic(err)
-	}
-
-	if err = DropTable(RuleTable, conn); err != nil {
-		panic(err)
+	tables := []string{FragmentTable, ReportTable, RuleTable, KeywordsTable}
+	for _, table := range tables {
+		if err = DropTable(table, conn); err != nil {
+			panic(err)
+		}
 	}
 
 	return

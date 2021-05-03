@@ -2,7 +2,6 @@ package fragment
 
 import (
 	"fmt"
-	"regexp"
 	"strings"
 	"unicode/utf8"
 )
@@ -117,70 +116,67 @@ func GetKeywordFragments(text, keyword string) (fragments []Fragment) {
 	return
 }
 
-func le(f1, f2 *Fragment) bool {
-	return f1.Offset <= f2.Offset
-}
-
 //Merge sort of two list of fragments
-func Merge(f1, f2 []Fragment) []Fragment {
-	f1Len := len(f1)
-	f2Len := len(f2)
+func Merge(f1, f2 *[]Fragment) []Fragment {
+	f1Len := len(*f1)
+	f2Len := len(*f2)
 
 	length := f1Len + f2Len
 	f := make([]Fragment, 0, length)
 
 	var p1, p2 int
 	for p1 < f1Len && p2 < f2Len {
-		if le(&f1[p1], &f2[p2]) {
-			f = append(f, f1[p1])
+		if (*f1)[p1].Offset <= (*f2)[p2].Offset {
+			f = append(f, (*f1)[p1])
 			p1++
 		} else {
-			f = append(f, f2[p2])
+			f = append(f, (*f2)[p2])
 			p2++
 		}
 	}
 
 	if p1 < f1Len {
-		f = append(f, f1[p1:]...)
+		f = append(f, (*f1)[p1:]...)
 	} else if p2 < f2Len {
-		f = append(f, f2[p2:]...)
+		f = append(f, (*f2)[p2:]...)
 	}
 	return f
 }
 
 //MergeSort : merge of sorted slices of fragments
-func MergeSort(frags [][]Fragment) (merged []Fragment) {
-	if len(frags) == 0 {
+func MergeSort(frags *[][]Fragment) (merged []Fragment) {
+	if len(*frags) == 0 {
 		return
 	}
 
-	if len(frags) == 1 {
-		return frags[0]
+	if len(*frags) == 1 {
+		return (*frags)[0]
 	}
 
-	merged = Merge(frags[0], frags[1])
+	merged = Merge(&(*frags)[0], &(*frags)[1])
 
-	for i := 2; i < len(frags); i++ {
-		merged = Merge(merged, frags[i])
+	for i := 2; i < len(*frags); i++ {
+		merged = Merge(&merged, &(*frags)[i])
 	}
 	return
 }
 
-func join(frags []Fragment, maxFragLen int) (f []Fragment) {
-	if len(frags) < 2 {
-		return frags
+//Join : join fragments optimal way
+func Join(frags *[]Fragment, maxFragLen int) (f []Fragment) {
+	if len(*frags) < 2 {
+		return *frags
 	}
 
-	f = make([]Fragment, 0, len(frags))
-	currFrag := frags[0]
+	f = make([]Fragment, 0, len(*frags))
+	currFrag := (*frags)[0]
 
-	for i := 1; i < len(frags); i++ {
-		unionFrag := UnionFragments(&currFrag, &frags[i])
+	for i := 1; i < len(*frags); i++ {
+		unionFrag := UnionFragments(&currFrag, &(*frags)[i])
 		if unionFrag.Length <= maxFragLen {
 			currFrag = unionFrag
 		} else {
 			f = append(f, currFrag)
-			currFrag = frags[i]
+			currFrag = (*frags)[i]
 		}
 	}
 	f = append(f, currFrag)
@@ -188,56 +184,51 @@ func join(frags []Fragment, maxFragLen int) (f []Fragment) {
 }
 
 //MergeFragments : merge fragments optimal way
-func MergeFragments(frags [][]Fragment, maxFragLen int) []Fragment {
+func MergeFragments(frags *[][]Fragment, maxFragLen int) []Fragment {
 	merged := MergeSort(frags)
-	return join(merged, maxFragLen)
+	return Join(&merged, maxFragLen)
 }
 
 //GetKeywordContext : get desired lenght word context if possible
-func GetKeywordContext(text string, desiredLen int, frags []Fragment) []Fragment {
-	if len(frags) == 0 {
-		return []Fragment{}
-	}
-
+func GetKeywordContext(text string, desiredLen int, frag Fragment) (context Fragment) {
 	var n, c, offset int
-	n = frags[0].Length
+	n = frag.Length
 	c = (n + 1) / 2
 	offset = (desiredLen + 1) / 2
 
-	for i, frag := range frags {
-		pivot := frag.Offset + c
-		leftBorder := pivot - offset
-		rightBorder := pivot + offset
+	pivot := frag.Offset + c
+	leftBorder := pivot - offset
+	rightBorder := pivot + offset
 
-		if leftBorder < 0 {
-			extra := -leftBorder
-			leftBorder = 0
-			if rightBorder+extra < len(text) {
-				rightBorder = rightBorder + extra
-			} else {
-				rightBorder = len(text) - 1
-			}
-		}
-
-		if rightBorder >= len(text) {
-			extra := rightBorder - len(text) + 1
+	if leftBorder < 0 {
+		extra := -leftBorder
+		leftBorder = 0
+		if rightBorder+extra < len(text) {
+			rightBorder = rightBorder + extra
+		} else {
 			rightBorder = len(text) - 1
-
-			if leftBorder-extra > 0 {
-				leftBorder = leftBorder - extra
-			} else {
-				leftBorder = 0
-			}
 		}
-
-		frags[i].Offset = leftBorder
-		frags[i].Length = rightBorder - leftBorder + 1
-		frags[i].AlignToRunes(text)
 	}
-	return frags
+
+	if rightBorder >= len(text) {
+		extra := rightBorder - len(text) + 1
+		rightBorder = len(text) - 1
+
+		if leftBorder-extra > 0 {
+			leftBorder = leftBorder - extra
+		} else {
+			leftBorder = 0
+		}
+	}
+
+	context.Offset = leftBorder
+	context.Length = rightBorder - leftBorder + 1
+	context.AlignToRunes(text)
+	return context
 }
 
 //GetKeywordsInFragments : return indices of keywords that are inside of fragments
+//keywords & fragments must be sorted
 func GetKeywordsInFragments(keywords, fragments []Fragment) (result map[int][]int) {
 	result = make(map[int][]int)
 	for fID := 0; fID < len(fragments); fID++ {
@@ -259,34 +250,4 @@ func GetKeywordsInFragments(keywords, fragments []Fragment) (result map[int][]in
 	}
 
 	return result
-}
-
-//CheckKeywordFragment : checks if fragment with keyword matches the expression
-func CheckKeywordFragment(expressions []*regexp.Regexp, fragment, keyword Fragment, text string) (match bool, id int, err error) {
-	var builder strings.Builder
-	fragmentText, err := fragment.Apply(text)
-
-	if err != nil {
-		return
-	}
-
-	if keyword.Offset < fragment.Offset || keyword.Offset+keyword.Length > fragment.Offset+fragment.Length {
-		err = fmt.Errorf("Keyword is out of the fragment")
-		return
-	}
-
-	builder.WriteString(text[fragment.Offset:keyword.Offset])
-	builder.WriteString(text[keyword.Offset+keyword.Length : fragment.Offset+fragment.Length])
-	stripped := builder.String()
-
-	for id, expr := range expressions {
-		if expr.Match([]byte(fragmentText)) {
-			if expr.Match([]byte(stripped)) {
-				continue
-			} else {
-				return true, id, err
-			}
-		}
-	}
-	return false, -1, err
 }

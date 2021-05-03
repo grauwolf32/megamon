@@ -46,8 +46,10 @@ func TestFragmener(t *testing.T) {
 	close(textQueue)
 
 	fragmentQueue := make(chan models.TextFragment, 10)
-	keywords := []string{"test"}
-	fragmenter(ctx, textQueue, fragmentQueue, keywords)
+	keywords := []models.Keyword{{Value: "test"}}
+	rules := []models.RejectRule{}
+
+	fragmenter(ctx, textQueue, fragmentQueue, &keywords, &rules)
 	close(fragmentQueue)
 
 	result := make([]models.TextFragment, 0, 10)

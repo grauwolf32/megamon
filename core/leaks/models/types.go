@@ -1,13 +1,15 @@
 package models
 
+import "regexp"
+
 //Report : report structure
 type Report struct {
-	ID      int      `json:"id"`
+	ShaHash [20]byte `json:"sha1"`
+	Time    int64    `json:"time"`
 	Type    string   `json:"type"`
 	Status  string   `json:"status"`
-	ShaHash [20]byte `json:"sha1"`
 	Data    []byte   `json:"data"`
-	Time    int64    `json:"time"`
+	ID      int      `json:"id"`
 }
 
 //RejectRule : description of reject rule
@@ -15,15 +17,16 @@ type RejectRule struct {
 	ID   int    `json:"id"`
 	Rule string `json:"rule"`
 	Name string `json:"name"`
+	Expr *regexp.Regexp
 }
 
 //TextFragment : fragments of text with keywords
 type TextFragment struct {
+	ShaHash  [20]byte `json:"sha1"`
+	Text     string   `json:"text"`
 	ID       int      `json:"id"`
 	ReportID int      `json:"report_id"`
 	RejectID int      `json:"reject_id"`
-	Text     string   `json:"text"`
-	ShaHash  [20]byte `json:"sha1"`
 	Keywords [][]int  `json:"keywords"`
 }
 

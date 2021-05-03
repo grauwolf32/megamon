@@ -4,9 +4,12 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"regexp"
 
 	"fmt"
 
+	//Postgresql driver
+	_ "github.com/lib/pq"
 	"github.com/megamon/core/utils"
 )
 
@@ -210,6 +213,14 @@ func (manager *Manager) CheckReportDuplicate(ShaHash []byte) (exist bool, err er
 
 //InsertRule : inser rule into db
 func (manager *Manager) InsertRule(rule RejectRule) (ID int, err error) {
+	//Verify data consistency
+	if rule.Expr == nil {
+		rule.Expr, err = regexp.Compile(rule.Rule)
+		if err != nil {
+			return
+		}
+	}
+
 	query := "INSERT INTO " + RuleTable + " (name, rule) VALUES ($1, $2) RETURNING id;"
 	err = manager.Database.QueryRow(query, rule.Name, rule.Rule).Scan(&ID)
 	return
@@ -233,6 +244,15 @@ func (manager *Manager) SelectRuleByID(ID int) (rule RejectRule, err error) {
 	query := "SELECT id, name, rule FROM " + RuleTable + " WHERE id=$1;"
 	row := manager.Database.QueryRow(query, ID)
 	err = row.Scan(&rule.ID, &rule.Name, &rule.Rule)
+	if err != nil {
+		return
+	}
+
+	rule.Expr, err = regexp.Compile(rule.Rule)
+	if err != nil {
+		return
+	}
+
 	return
 }
 
@@ -251,6 +271,12 @@ func (manager *Manager) SelectAllRules() (rules []RejectRule, err error) {
 		if err != nil {
 			return
 		}
+
+		rule.Expr, err = regexp.Compile(rule.Rule)
+		if err != nil {
+			return
+		}
+
 		rules = append(rules, rule)
 	}
 	return
@@ -272,7 +298,27 @@ func (manager *Manager) DeleteKeyword(ID int) (err error) {
 
 //SelectKeywordByType : select all keywords with the same type
 func (manager *Manager) SelectKeywordByType(wordType int) (keywords []Keyword, err error) {
-	query := "SELECT id, keyword, type FROM " + KeywordsTable + " WHERE type=$1"
+	query := "SELECT id, keyword, type FROM " + KeywordsTable + " WHERE type=$1;"
+	rows, err := manager.Database.Query(query)
+	if err != nil {
+		return
+	}
+
+	defer rows.Close()
+	for rows.Next() {
+		var keyword Keyword
+		err = rows.Scan(&keyword.ID, &keyword.Value, &keyword.Type)
+		if err != nil {
+			return
+		}
+		keywords = append(keywords, keyword)
+	}
+	return
+}
+
+//SelectAllKeywords : select all keywords from database
+func (manager *Manager) SelectAllKeywords() (keywords []Keyword, err error) {
+	query := "SELECT id, keyword, type FROM " + KeywordsTable + ";"
 	rows, err := manager.Database.Query(query)
 	if err != nil {
 		return
@@ -300,33 +346,23 @@ func (manager *Manager) SelectKeywordByID(ID int) (keyword Keyword, err error) {
 
 //Init :  init checks & table creation
 func Init(conn *sql.DB) (err error) {
-	exist, err := CheckExists(FragmentTable, conn)
-	if err != nil {
-		return
-	}
-	if !exist {
-		if err = createFragmentTable(FragmentTable, conn); err != nil {
+	tables := make(map[string](func(name string, conn *sql.DB) (err error)), 10)
+
+	tables[FragmentTable] = createFragmentTable
+	tables[ReportTable] = createReportTable
+	tables[RuleTable] = createRulesTable
+	tables[KeywordsTable] = createKeywordsTable
+
+	for table := range tables {
+		exist, err := CheckExists(table, conn)
+		if err != nil {
 			return err
 		}
-	}
-
-	exist, err = CheckExists(ReportTable, conn)
-	if err != nil {
-		return
-	}
-	if !exist {
-		if err = createReportTable(ReportTable, conn); err != nil {
-			return err
-		}
-	}
-
-	exist, err = CheckExists(RuleTable, conn)
-	if err != nil {
-		return
-	}
-	if !exist {
-		if err = createRulesTable(RuleTable, conn); err != nil {
-			return err
+		if !exist {
+			err = tables[table](table, conn)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -358,19 +394,25 @@ func DropTable(tableName string, conn *sql.DB) (err error) {
 }
 
 func createFragmentTable(tableName string, conn *sql.DB) (err error) {
-	query := "CREATE TABLE " + tableName + " (id serial, content bytea, reject_id integer, report_id integer, shahash varchar, keywords jsonb);"
+	query := "CREATE TABLE " + tableName + " (id serial, content bytea, reject_id integer, report_id integer, shahash varchar PRIMARY KEY, keywords jsonb);"
 	_, err = conn.Exec(query)
 	return
 }
 
 func createReportTable(tableName string, conn *sql.DB) (err error) {
-	query := "CREATE TABLE " + tableName + " (id serial, shahash bigint, status varchar, data bytea, time integer);"
+	query := "CREATE TABLE " + tableName + " (id serial, shahash varchar PRIMARY KEY, status varchar, data bytea, time integer);"
+	_, err = conn.Exec(query)
+	return
+}
+
+func createKeywordsTable(tableName string, conn *sql.DB) (err error) {
+	query := "CREATE TABLE " + tableName + " (id serial, type int, keyword varchar);"
 	_, err = conn.Exec(query)
 	return
 }
 
 func createRulesTable(tableName string, conn *sql.DB) (err error) {
-	query := "CREATE TABLE " + tableName + " (id serial, name varchar, rule varchar);"
+	query := "CREATE TABLE " + tableName + " (id serial, name varchar, rule varchar) ;"
 	_, err = conn.Exec(query)
 	if err != nil {
 		return

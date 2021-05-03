@@ -143,7 +143,7 @@ func TestJoin1(t *testing.T) {
 	c := Fragment{12, 8}
 
 	f := []Fragment{a, b, c}
-	r := join(f, 15)
+	r := Join(&f, 15)
 
 	if len(r) != 2 {
 		t.Errorf("Wrong length of the join: expected 2, got: %d", len(r))
@@ -167,7 +167,7 @@ func TestJoin2(t *testing.T) {
 	c := Fragment{12, 8}
 
 	f := []Fragment{a, b, c}
-	r := join(f, 20)
+	r := Join(&f, 20)
 
 	if len(r) != 1 {
 		t.Errorf("Wrong length of the join: expected 1, got: %d", len(r))
@@ -191,7 +191,7 @@ func TestMerge1(t *testing.T) {
 		{7, 10},
 	}
 
-	f := Merge(f1, f2)
+	f := Merge(&f1, &f2)
 	expected := "[{0 10} {2 10} {5 10} {7 10}]"
 	if fmt.Sprintf("%v", f) != expected {
 		t.Errorf("Wrong merge: expected: %s got %v", expected, f)
@@ -211,7 +211,7 @@ func TestMerge2(t *testing.T) {
 		{7, 10},
 	}
 
-	f := Merge(f1, f2)
+	f := Merge(&f1, &f2)
 	expected := "[{0 10} {2 10} {5 10} {7 10} {12 10}]"
 	if fmt.Sprintf("%v", f) != expected {
 		t.Errorf("Wrong merge: expected: %s got %v", expected, f)
@@ -235,7 +235,7 @@ func TestMergeFragments1(t *testing.T) {
 		{15, 8},
 	}
 
-	r := MergeFragments([][]Fragment{f1, f2, f3}, 15)
+	r := MergeFragments(&[][]Fragment{f1, f2, f3}, 15)
 	expected := "[{0 15} {7 15} {15 8}]"
 
 	if fmt.Sprintf("%v", r) != expected {
@@ -247,13 +247,18 @@ func TestMergeFragments1(t *testing.T) {
 func TestGetKeywordContext(t *testing.T) {
 	text := "jsadjf; sdjfsdfjk adjsfk sdafjkds fjadsfkj afjdask test jfdskalfjds dsjfkljadsf ajkdflads"
 	kwFrags := GetKeywordFragments(text, "test")
-	frags := GetKeywordContext(text, 10, kwFrags)
+	contexts := make([]Fragment, 0, len(kwFrags))
 
-	if len(frags) != 1 {
-		t.Errorf("Expected length: 1 got %d", len(frags))
+	for _, frag := range kwFrags {
+		context := GetKeywordContext(text, 10, frag)
+		contexts = append(contexts, context)
 	}
 
-	r, _ := frags[0].Apply(text)
+	if len(contexts) != 1 {
+		t.Errorf("Expected length: 1 got %d", len(contexts))
+	}
+
+	r, _ := contexts[0].Apply(text)
 	expected := "sk test jfd"
 
 	if r != expected {
