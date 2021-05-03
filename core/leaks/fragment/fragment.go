@@ -2,6 +2,7 @@ package fragment
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 	"unicode/utf8"
 )
@@ -258,4 +259,34 @@ func GetKeywordsInFragments(keywords, fragments []Fragment) (result map[int][]in
 	}
 
 	return result
+}
+
+//CheckKeywordFragment : checks if fragment with keyword matches the expression
+func CheckKeywordFragment(expressions []*regexp.Regexp, fragment, keyword Fragment, text string) (match bool, id int, err error) {
+	var builder strings.Builder
+	fragmentText, err := fragment.Apply(text)
+
+	if err != nil {
+		return
+	}
+
+	if keyword.Offset < fragment.Offset || keyword.Offset+keyword.Length > fragment.Offset+fragment.Length {
+		err = fmt.Errorf("Keyword is out of the fragment")
+		return
+	}
+
+	builder.WriteString(text[fragment.Offset:keyword.Offset])
+	builder.WriteString(text[keyword.Offset+keyword.Length : fragment.Offset+fragment.Length])
+	stripped := builder.String()
+
+	for id, expr := range expressions {
+		if expr.Match([]byte(fragmentText)) {
+			if expr.Match([]byte(stripped)) {
+				continue
+			} else {
+				return true, id, err
+			}
+		}
+	}
+	return false, -1, err
 }

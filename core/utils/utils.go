@@ -2,7 +2,6 @@ package utils
 
 import (
 	"compress/gzip"
-	"encoding/json"
 	"io"
 	"log"
 	"net/http"
@@ -10,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/megamon/core/config"
+	"gopkg.in/yaml.v2"
 )
 
 var (
@@ -94,7 +93,7 @@ func InitConfig(confFile string) (err error) {
 		return
 	}
 
-	err = json.Unmarshal(confData, &config.Settings)
+	err = yaml.Unmarshal(confData, &Settings)
 	return
 }
 

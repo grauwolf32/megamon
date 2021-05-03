@@ -182,13 +182,13 @@ func TestJoin2(t *testing.T) {
 
 func TestMerge1(t *testing.T) {
 	f1 := []Fragment{
-		Fragment{0, 10},
-		Fragment{5, 10},
+		{0, 10},
+		{5, 10},
 	}
 
 	f2 := []Fragment{
-		Fragment{2, 10},
-		Fragment{7, 10},
+		{2, 10},
+		{7, 10},
 	}
 
 	f := Merge(f1, f2)
@@ -201,14 +201,14 @@ func TestMerge1(t *testing.T) {
 
 func TestMerge2(t *testing.T) {
 	f1 := []Fragment{
-		Fragment{0, 10},
-		Fragment{5, 10},
-		Fragment{12, 10},
+		{0, 10},
+		{5, 10},
+		{12, 10},
 	}
 
 	f2 := []Fragment{
-		Fragment{2, 10},
-		Fragment{7, 10},
+		{2, 10},
+		{7, 10},
 	}
 
 	f := Merge(f1, f2)
@@ -221,18 +221,18 @@ func TestMerge2(t *testing.T) {
 
 func TestMergeFragments1(t *testing.T) {
 	f1 := []Fragment{
-		Fragment{0, 10},
-		Fragment{5, 10},
+		{0, 10},
+		{5, 10},
 	}
 
 	f2 := []Fragment{
-		Fragment{2, 10},
-		Fragment{7, 10},
+		{2, 10},
+		{7, 10},
 	}
 
 	f3 := []Fragment{
-		Fragment{12, 10},
-		Fragment{15, 8},
+		{12, 10},
+		{15, 8},
 	}
 
 	r := MergeFragments([][]Fragment{f1, f2, f3}, 15)

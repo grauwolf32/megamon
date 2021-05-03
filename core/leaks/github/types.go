@@ -66,3 +66,10 @@ func logInfo(info string) {
 	utils.InfoLogger.Println(info)
 	return
 }
+
+// Langs : supported langs for search
+var Langs = [...]string{"C", "C#", "C++", "CoffeeScript", "CSS", "Dart", "DM", "Elixir", "Go", "Groovy", "HTML", "Java",
+	"JavaScript", "Kotlin", "Objective-C", "Perl", "PHP", "PowerShell", "Python", "Ruby", "Rust",
+	"Scala", "Shell", "Swift", "TypeScript", "CSV", "JSON", "Makefile", "Markdown", "YAML", "XML",
+	"Diff", "Erlang", "GraphQL", "Jupyter+Notebook", "Lua", "Protocol+Buffer", "Public+Key", "SQL",
+	"SSH+Config", "Text"}

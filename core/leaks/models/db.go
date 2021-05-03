@@ -1,12 +1,13 @@
-package db
+package models
 
 import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+
 	"fmt"
 
-	"github.com/megamon/core/leaks/helpers"
+	"github.com/megamon/core/utils"
 )
 
 //Manager : database manager for all types
@@ -14,14 +15,40 @@ type Manager struct {
 	Database *sql.DB
 }
 
+//ReportTable : global name for table with reports
+var ReportTable = "reports"
+
+//FragmentTable : global name for table with fragments
+var FragmentTable = "fragments"
+
+//RuleTable : global name for table with rules
+var RuleTable = "rules"
+
+//KeywordsTable : global name for table with keywords
+var KeywordsTable = "keywords"
+
 //Init : Manager constructor
-func (manager *Manager) Init(conn *sql.DB) {
+func (manager *Manager) Init() (err error) {
+	creds := utils.Settings.DBCredentials
+	conn, err := Connect(creds.Name, creds.Password, creds.Database)
+	if err != nil {
+		return
+	}
+
 	manager.Database = conn
 	return
 }
 
+//Close : Manager destructor
+func (manager *Manager) Close() {
+	if manager.Database != nil {
+		manager.Database.Close()
+	}
+	return
+}
+
 //InsertTextFragment : insert text fragment into db
-func (manager *Manager) InsertTextFragment(frag *helpers.TextFragment) (ID int, err error) {
+func (manager *Manager) InsertTextFragment(frag *TextFragment) (ID int, err error) {
 	query := "INSERT INTO " + FragmentTable + " (content, reject_id, report_id, shahash, keywords) VALUES ($1, $2, $3, $4, $5) RETURNING id;"
 	kwData, err := json.Marshal(frag.Keywords)
 	shaHash := fmt.Sprintf("%x", string(frag.ShaHash[:]))
@@ -50,7 +77,7 @@ func (manager *Manager) DeleteTextFragmentByID(ID int) (err error) {
 }
 
 //SelectTextFragment : select text fragment from db
-func (manager *Manager) SelectTextFragment(field string, value int) (frags []helpers.TextFragment, err error) {
+func (manager *Manager) SelectTextFragment(field string, value int) (frags []TextFragment, err error) {
 	query := "SELECT id, content, reject_id, report_id, shahash, keywords FROM " + FragmentTable + " WHERE " + field + "=$1;"
 	rows, err := manager.Database.Query(query, value)
 
@@ -59,7 +86,7 @@ func (manager *Manager) SelectTextFragment(field string, value int) (frags []hel
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var frag helpers.TextFragment
+		var frag TextFragment
 		var content []byte
 		var kwData []byte
 		var shaHashStr string
@@ -87,7 +114,7 @@ func (manager *Manager) SelectTextFragment(field string, value int) (frags []hel
 }
 
 //InsertReport : inser report to db
-func (manager *Manager) InsertReport(report helpers.Report) (ID int, err error) {
+func (manager *Manager) InsertReport(report Report) (ID int, err error) {
 	query := "INSERT INTO " + ReportTable + " (type, status, data, time) VALUES ($1, $2, $3, $4) RETURNING id;"
 	shaHash := fmt.Sprintf("%x", string(report.ShaHash[:]))
 	fmt.Printf("%s", shaHash)
@@ -111,7 +138,7 @@ func (manager *Manager) DeleteReportByID(ID int) (err error) {
 }
 
 //SelectReportByID : select report from db
-func (manager *Manager) SelectReportByID(ID int) (reports []helpers.Report, err error) {
+func (manager *Manager) SelectReportByID(ID int) (reports []Report, err error) {
 	query := "SELECT id, type, status, data, shahash, time FROM " + ReportTable + " WHERE id=$1;"
 
 	rows, err := manager.Database.Query(query, ID)
@@ -121,7 +148,7 @@ func (manager *Manager) SelectReportByID(ID int) (reports []helpers.Report, err 
 
 	defer rows.Close()
 	for rows.Next() {
-		var rep helpers.Report
+		var rep Report
 		var shaHashStr string
 
 		err = rows.Scan(&rep.ID, &rep.Type, &rep.Status, &rep.Data, &shaHashStr, &rep.Time)
@@ -142,7 +169,7 @@ func (manager *Manager) SelectReportByID(ID int) (reports []helpers.Report, err 
 }
 
 //SelectReportByStatus : select report by it's type & status
-func (manager *Manager) SelectReportByStatus(reportType, status string) (reports []helpers.Report, err error) {
+func (manager *Manager) SelectReportByStatus(reportType, status string) (reports []Report, err error) {
 	query := "SELECT id, type, status, data, shahash, time FROM " + ReportTable + " WHERE type=$1 AND status=$2;"
 	rows, err := manager.Database.Query(query, reportType, status)
 	if err != nil {
@@ -151,7 +178,7 @@ func (manager *Manager) SelectReportByStatus(reportType, status string) (reports
 
 	defer rows.Close()
 	for rows.Next() {
-		var rep helpers.Report
+		var rep Report
 		var shaHashStr string
 
 		err = rows.Scan(&rep.ID, &rep.Type, &rep.Status, &rep.Data, &shaHashStr, &rep.Time)
@@ -182,14 +209,14 @@ func (manager *Manager) CheckReportDuplicate(ShaHash []byte) (exist bool, err er
 }
 
 //InsertRule : inser rule into db
-func (manager *Manager) InsertRule(rule helpers.RejectRule) (ID int, err error) {
+func (manager *Manager) InsertRule(rule RejectRule) (ID int, err error) {
 	query := "INSERT INTO " + RuleTable + " (name, rule) VALUES ($1, $2) RETURNING id;"
 	err = manager.Database.QueryRow(query, rule.Name, rule.Rule).Scan(&ID)
 	return
 }
 
 //UpdateRule : update rule in database
-func (manager *Manager) UpdateRule(rule helpers.RejectRule) (err error) {
+func (manager *Manager) UpdateRule(rule RejectRule) (err error) {
 	err = fmt.Errorf("Not implemented")
 	return
 }
@@ -202,7 +229,7 @@ func (manager *Manager) DeleteRuleByID(ID int) (err error) {
 }
 
 //SelectRuleByID : select rejection rule by id
-func (manager *Manager) SelectRuleByID(ID int) (rule helpers.RejectRule, err error) {
+func (manager *Manager) SelectRuleByID(ID int) (rule RejectRule, err error) {
 	query := "SELECT id, name, rule FROM " + RuleTable + " WHERE id=$1;"
 	row := manager.Database.QueryRow(query, ID)
 	err = row.Scan(&rule.ID, &rule.Name, &rule.Rule)
@@ -210,7 +237,7 @@ func (manager *Manager) SelectRuleByID(ID int) (rule helpers.RejectRule, err err
 }
 
 //SelectAllRules : select all rejection rules from database
-func (manager *Manager) SelectAllRules() (rules []helpers.RejectRule, err error) {
+func (manager *Manager) SelectAllRules() (rules []RejectRule, err error) {
 	query := "SELECT id, name, rule FROM " + RuleTable + ";"
 	rows, err := manager.Database.Query(query)
 	if err != nil {
@@ -219,11 +246,150 @@ func (manager *Manager) SelectAllRules() (rules []helpers.RejectRule, err error)
 
 	defer rows.Close()
 	for rows.Next() {
-		var rule helpers.RejectRule
+		var rule RejectRule
 		err = rows.Scan(&rule.ID, &rule.Name, &rule.Rule)
 		if err != nil {
 			return
 		}
+		rules = append(rules, rule)
+	}
+	return
+}
+
+//InsertKeyword : insert keyword to the databese
+func (manager *Manager) InsertKeyword(keyword string, wordType int) (ID int, err error) {
+	query := "INSERT INTO " + KeywordsTable + " (keyword, type)  VALUES  ($1, $2) RETURNING id;"
+	err = manager.Database.QueryRow(query, keyword, wordType).Scan(&ID)
+	return
+}
+
+//DeleteKeyword : delete keyword from database
+func (manager *Manager) DeleteKeyword(ID int) (err error) {
+	query := "DELETE FROM " + KeywordsTable + " WHERE id=$1;"
+	_, err = manager.Database.Exec(query, ID)
+	return
+}
+
+//SelectKeywordByType : select all keywords with the same type
+func (manager *Manager) SelectKeywordByType(wordType int) (keywords []Keyword, err error) {
+	query := "SELECT id, keyword, type FROM " + KeywordsTable + " WHERE type=$1"
+	rows, err := manager.Database.Query(query)
+	if err != nil {
+		return
+	}
+
+	defer rows.Close()
+	for rows.Next() {
+		var keyword Keyword
+		err = rows.Scan(&keyword.ID, &keyword.Value, &keyword.Type)
+		if err != nil {
+			return
+		}
+		keywords = append(keywords, keyword)
+	}
+	return
+}
+
+//SelectKeywordByID : select particular keyword from database by its id
+func (manager *Manager) SelectKeywordByID(ID int) (keyword Keyword, err error) {
+	query := "SELECT id, keyword, type FROM " + KeywordsTable + " WHERE id=$1"
+	row := manager.Database.QueryRow(query, ID)
+	err = row.Scan(&keyword.ID, &keyword.Value, &keyword.Type)
+	return
+}
+
+//Init :  init checks & table creation
+func Init(conn *sql.DB) (err error) {
+	exist, err := CheckExists(FragmentTable, conn)
+	if err != nil {
+		return
+	}
+	if !exist {
+		if err = createFragmentTable(FragmentTable, conn); err != nil {
+			return err
+		}
+	}
+
+	exist, err = CheckExists(ReportTable, conn)
+	if err != nil {
+		return
+	}
+	if !exist {
+		if err = createReportTable(ReportTable, conn); err != nil {
+			return err
+		}
+	}
+
+	exist, err = CheckExists(RuleTable, conn)
+	if err != nil {
+		return
+	}
+	if !exist {
+		if err = createRulesTable(RuleTable, conn); err != nil {
+			return err
+		}
+	}
+
+	return
+}
+
+// Connect to database
+func Connect(name, password, database string) (db *sql.DB, err error) {
+	ConnectURI := fmt.Sprintf("postgres://%s:%s@localhost/%s?sslmode=disable", name, password, database)
+	db, err = sql.Open("postgres", ConnectURI)
+	return
+}
+
+//CheckExists : Check if table exists in db
+func CheckExists(tableName string, conn *sql.DB) (exist bool, err error) {
+	query := "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema=$2 AND table_name=$1);"
+	schema := "public"
+	row := conn.QueryRow(query, tableName, schema)
+
+	err = row.Scan(&exist)
+	return
+}
+
+//DropTable : drops table if exists
+func DropTable(tableName string, conn *sql.DB) (err error) {
+	query := "DROP TABLE IF EXISTS " + tableName + " CASCADE;"
+	_, err = conn.Exec(query)
+	return
+}
+
+func createFragmentTable(tableName string, conn *sql.DB) (err error) {
+	query := "CREATE TABLE " + tableName + " (id serial, content bytea, reject_id integer, report_id integer, shahash varchar, keywords jsonb);"
+	_, err = conn.Exec(query)
+	return
+}
+
+func createReportTable(tableName string, conn *sql.DB) (err error) {
+	query := "CREATE TABLE " + tableName + " (id serial, shahash bigint, status varchar, data bytea, time integer);"
+	_, err = conn.Exec(query)
+	return
+}
+
+func createRulesTable(tableName string, conn *sql.DB) (err error) {
+	query := "CREATE TABLE " + tableName + " (id serial, name varchar, rule varchar);"
+	_, err = conn.Exec(query)
+	if err != nil {
+		return
+	}
+
+	query = "INSERT INTO " + tableName + " (name, rule) VALUES ($1, $2)"
+	_, err = conn.Exec(query, "manual", "")
+	if err != nil {
+		return
+	}
+
+	_, err = conn.Exec(query, "verified", "")
+	if err != nil {
+		return
+	}
+
+	_, err = conn.Exec(query, "auto_remove", "")
+	if err != nil {
+		return
 	}
 	return
 }

@@ -1,11 +1,9 @@
-package db
+package models
 
 import (
 	"os"
 	"testing"
 
-	"github.com/megamon/core/config"
-	"github.com/megamon/core/leaks/helpers"
 	"github.com/megamon/core/utils"
 )
 
@@ -15,7 +13,7 @@ var testRules string
 
 func setup() {
 	utils.InitConfig("../../../config/config.json")
-	creds := config.Settings.DBCredentials
+	creds := utils.Settings.DBCredentials
 
 	conn, err := Connect(creds.Name, creds.Password, creds.Database)
 	defer conn.Close()
@@ -60,7 +58,7 @@ func setup() {
 }
 
 func clean() {
-	creds := config.Settings.DBCredentials
+	creds := utils.Settings.DBCredentials
 	conn, err := Connect(creds.Name, creds.Password, creds.Database)
 	defer conn.Close()
 
@@ -87,7 +85,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestConnect(t *testing.T) {
-	creds := config.Settings.DBCredentials
+	creds := utils.Settings.DBCredentials
 	conn, err := Connect(creds.Name, creds.Password, creds.Database)
 
 	if err != nil {
@@ -104,18 +102,16 @@ func TestConnect(t *testing.T) {
 }
 
 func TestTextFragmentOps1(t *testing.T) {
-	creds := config.Settings.DBCredentials
-	conn, err := Connect(creds.Name, creds.Password, creds.Database)
-
 	var manager Manager
-	manager.Init(conn)
+	manager.Init()
+	defer manager.Close()
 
-	var tf helpers.TextFragment
+	var tf TextFragment
 	tf.ReportID = 111
 	tf.RejectID = 1
 	tf.Text = "test fragment"
 	tf.ShaHash = [20]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20}
-	tf.Keywords = [][]int{[]int{1, 2}, []int{3, 4}}
+	tf.Keywords = [][]int{{1, 2}, {3, 4}}
 
 	ID, err := manager.InsertTextFragment(&tf)
 

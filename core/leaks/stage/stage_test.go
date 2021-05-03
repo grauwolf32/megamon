@@ -6,7 +6,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/megamon/core/leaks/helpers"
+	"github.com/megamon/core/leaks/models"
 	"github.com/megamon/core/utils"
 )
 
@@ -45,12 +45,12 @@ func TestFragmener(t *testing.T) {
 	textQueue <- ReportText{ReportID: 1, Text: text}
 	close(textQueue)
 
-	fragmentQueue := make(chan helpers.TextFragment, 10)
+	fragmentQueue := make(chan models.TextFragment, 10)
 	keywords := []string{"test"}
 	fragmenter(ctx, textQueue, fragmentQueue, keywords)
 	close(fragmentQueue)
 
-	result := make([]helpers.TextFragment, 0, 10)
+	result := make([]models.TextFragment, 0, 10)
 
 	for frag := range fragmentQueue {
 		result = append(result, frag)

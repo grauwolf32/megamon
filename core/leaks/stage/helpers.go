@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/megamon/core/leaks/helpers"
+	"github.com/megamon/core/leaks/models"
 	"github.com/megamon/core/utils"
 )
 
@@ -35,6 +35,26 @@ const (
 
 	//MAXCONTEXTLEN : max length of keyword context
 	MAXCONTEXTLEN = 640
+)
+
+const (
+	//PROCESSED : first stage of leak processing
+	PROCESSED = "processed"
+
+	//FETCHED : second stage; load all content
+	FETCHED = "fetched"
+
+	//FRAGMENTED : third stage; generated all fragments
+	FRAGMENTED = "fragmented"
+
+	//NEW : fourth stage; report can be viewed
+	NEW = "new"
+
+	//CLOSED : report closed
+	CLOSED = "closed"
+
+	//VALIDATED : report validated (leak found)
+	VALIDATED = "validated"
 )
 
 //Request : basic request type
@@ -68,7 +88,7 @@ type MiddlewareInterface interface {
 type Interface interface {
 	MiddlewareInterface
 	GetTextsToProcess() ([]ReportText, error)
-	ProcessTextFragment(fragment helpers.TextFragment) error
+	ProcessTextFragment(fragment models.TextFragment) error
 }
 
 //RateLimiter : limits requests rate

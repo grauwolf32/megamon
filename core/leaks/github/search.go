@@ -9,9 +9,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/megamon/core/config"
-	"github.com/megamon/core/leaks/db"
-	"github.com/megamon/core/leaks/helpers"
+	"github.com/megamon/core/leaks/models"
 	"github.com/megamon/core/leaks/stage"
 	"github.com/megamon/core/utils"
 )
@@ -48,7 +46,7 @@ func buildGitSearchRequest(query string, offset int, token string) (req *http.Re
 //SearchStage : type of the stage interface
 type SearchStage struct {
 	RequestParams map[int]gitRequestParams
-	Manager       db.Manager
+	Manager       models.Manager
 }
 
 //Init : constructor
@@ -60,13 +58,12 @@ func (s *SearchStage) Init() {
 //BuildRequests : generate search requests
 func (s *SearchStage) BuildRequests() (reqQueue chan stage.Request, err error) {
 	defer close(reqQueue)
-	keywords := config.Settings.LeakGlobals.Keywords
-	langs := config.Settings.Github.Languages
-	tokens := config.Settings.Github.Tokens
+	keywords := utils.Settings.LeakGlobals.Keywords
+	tokens := utils.Settings.Github.Tokens
 	var id int
 
 	// nQueries := len(keywords) * len(langs)
-	for i, lang := range langs {
+	for i, lang := range Langs {
 		for j, keyword := range keywords {
 			query := buildGitSearchQuery(keyword, lang, false)
 			token := tokens[(i*len(keywords)+j)%len(tokens)]
@@ -166,7 +163,7 @@ func (s *SearchStage) ProcessResponse(resp []byte) (err error) {
 			continue
 		}
 
-		var report helpers.Report
+		var report models.Report
 		report.Type = "github"
 		report.Status = "processing"
 		report.Time = time.Now().Unix()

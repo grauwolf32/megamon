@@ -5,16 +5,16 @@ import (
 	"crypto/sha1"
 	"sync"
 
-	"github.com/megamon/core/config"
 	"github.com/megamon/core/leaks/fragment"
-	"github.com/megamon/core/leaks/helpers"
+	"github.com/megamon/core/leaks/models"
+	"github.com/megamon/core/utils"
 )
 
 //Fragmentize : calculate text fragments and process it
 func Fragmentize(ctx context.Context, stage *Interface, nWorkers int) {
 	var wg sync.WaitGroup
 	textQueue := make(chan ReportText, MAXCHANCAP)
-	fragmentQueue := make(chan helpers.TextFragment, MAXCHANCAP)
+	fragmentQueue := make(chan models.TextFragment, MAXCHANCAP)
 
 	wg.Add(1)
 	go func() {
@@ -34,7 +34,7 @@ func Fragmentize(ctx context.Context, stage *Interface, nWorkers int) {
 		return
 	}()
 
-	keywords := config.Settings.LeakGlobals.Keywords
+	keywords := utils.Settings.LeakGlobals.Keywords
 
 	for i := 0; i < nWorkers; i++ {
 		go fragmenter(ctx, textQueue, fragmentQueue, keywords)
@@ -54,7 +54,7 @@ func Fragmentize(ctx context.Context, stage *Interface, nWorkers int) {
 	return
 }
 
-func fragmenter(ctx context.Context, textQueue chan ReportText, fragmentQueue chan helpers.TextFragment, keywords []string) {
+func fragmenter(ctx context.Context, textQueue chan ReportText, fragmentQueue chan models.TextFragment, keywords []string) {
 	if len(keywords) == 0 {
 		return
 	}
@@ -79,7 +79,7 @@ func fragmenter(ctx context.Context, textQueue chan ReportText, fragmentQueue ch
 		kwInFrags := fragment.GetKeywordsInFragments(mergedKeywords, mergedContexts)
 
 		for id := range kwInFrags {
-			var textFragment helpers.TextFragment
+			var textFragment models.TextFragment
 			keywordIDs := kwInFrags[id]
 
 			frag := mergedContexts[id]
