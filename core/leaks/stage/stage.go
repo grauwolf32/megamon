@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net"
+	"net/http"
 	"strconv"
 	"sync"
 	"time"
@@ -33,7 +34,7 @@ func DoRequests(ctx context.Context, stage MiddlewareInterface, reqQueue chan Re
 					}
 
 					logErr(err)
-					_ = rl.Wait(ctx, httpResp)
+					_ = rl.Wait(ctx, &http.Response{})
 					continue
 
 				} else {
@@ -109,15 +110,14 @@ func RunMiddlewareStage(ctx context.Context, stage MiddlewareInterface, limiter 
 	reqQueue := make(chan Request, MAXCHANCAP)
 	respQueue := make(chan Response, MAXCHANCAP)
 
-	err = stage.BuildRequests(reqQueue)
-	if err != nil {
-		close(respQueue)
-		close(reqQueue)
-		return err
-	}
-
 	var wgRequests sync.WaitGroup
-	var wg sync.WaitGroup
+	wgRequests.Add(1)
+	go func() {
+		defer close(reqQueue)
+		defer wgRequests.Done()
+		_ = stage.BuildRequests(reqQueue)
+		return
+	}()
 
 	logInfo("initializing stage request workers")
 	for i := 0; i < nRequestWorkers; i++ {
@@ -128,6 +128,7 @@ func RunMiddlewareStage(ctx context.Context, stage MiddlewareInterface, limiter 
 		}()
 	}
 
+	var wg sync.WaitGroup
 	logInfo("initializing stage processing workers")
 	for i := 0; i < nProcessWorkers; i++ {
 		wg.Add(1)
@@ -138,9 +139,9 @@ func RunMiddlewareStage(ctx context.Context, stage MiddlewareInterface, limiter 
 	}
 
 	wgRequests.Wait()
-	close(reqQueue)
-	wg.Wait()
 	close(respQueue)
+	wg.Wait()
+
 	return
 }
 
@@ -148,6 +149,8 @@ func RunMiddlewareStage(ctx context.Context, stage MiddlewareInterface, limiter 
 func RunStage(ctx context.Context, stage Interface, limiter RateLimiter, nRequestWorkers, nProcessWorkers, nFragmentizeWorkers int) (err error) {
 	middleware := stage.(MiddlewareInterface)
 	RunMiddlewareStage(ctx, middleware, limiter, nRequestWorkers, nProcessWorkers)
+
+	logInfo("fragmentizing reports")
 	Fragmentize(ctx, stage, nFragmentizeWorkers)
 	return
 }

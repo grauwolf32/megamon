@@ -104,8 +104,7 @@ func InitLoggers(logFile string) (err error) {
 		log.Fatal(err)
 	}
 
-	InfoLogger = log.New(file, "INFO: ", log.Ldate|log.Ltime|log.Lshortfile)
-	WarningLogger = log.New(file, "WARNING: ", log.Ldate|log.Ltime|log.Lshortfile)
-	ErrorLogger = log.New(file, "ERROR: ", log.Ldate|log.Ltime|log.Lshortfile)
+	InfoLogger = log.New(file, "INFO: ", log.Ldate|log.Ltime)
+	ErrorLogger = log.New(file, "ERROR: ", log.Ldate|log.Ltime|log.Llongfile)
 	return
 }

@@ -88,7 +88,7 @@ type MiddlewareInterface interface {
 //Interface : common pipeline
 type Interface interface {
 	MiddlewareInterface
-	GetTextsToProcess() ([]ReportText, error)
+	GetTextsToProcess(chan ReportText) (err error)
 	ProcessTextFragment(fragment models.TextFragment) error
 }
 

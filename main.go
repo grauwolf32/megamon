@@ -14,11 +14,11 @@ func main() {
 	utils.InitConfig("./config/config.yaml")
 
 	if _, err := os.Stat(utils.Settings.LeakGlobals.LogDir); os.IsNotExist(err) {
-		os.Mkdir(utils.Settings.LeakGlobals.LogDir, os.FileMode(764))
+		os.Mkdir(utils.Settings.LeakGlobals.LogDir, os.FileMode(755))
 	}
 
 	if _, err := os.Stat(utils.Settings.LeakGlobals.ContentDir); os.IsNotExist(err) {
-		os.Mkdir(utils.Settings.LeakGlobals.ContentDir, os.FileMode(764))
+		os.Mkdir(utils.Settings.LeakGlobals.ContentDir, os.FileMode(755))
 	}
 
 	logFilePath := utils.Settings.LeakGlobals.LogDir + utils.Settings.LeakGlobals.LogFile

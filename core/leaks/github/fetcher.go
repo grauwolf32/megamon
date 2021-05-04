@@ -13,9 +13,10 @@ import (
 )
 
 func buildFetchRequest(url, token string) (*http.Request, error) {
+	logInfo(fmt.Sprintf("building fetch request: %s %s", url, token[:4]))
+
 	var requestBody bytes.Buffer
 	req, err := http.NewRequest("GET", url, &requestBody)
-	fmt.Println(url)
 
 	if err != nil {
 		return &http.Request{}, err
@@ -37,6 +38,7 @@ type FetchStage struct {
 //Init : constructor
 func (s *FetchStage) Init() (err error) {
 	s.ReportHashes = make(map[int][20]byte)
+	s.ReportIDs = make(map[int]int)
 	err = s.Manager.Init()
 	return
 }
@@ -100,6 +102,8 @@ func (s *FetchStage) GetDBManager() models.Manager {
 
 //ProcessResponse : process search response
 func (s *FetchStage) ProcessResponse(resp []byte, RequestID int) (err error) {
+	logInfo(fmt.Sprintf("processing fetch response from request : %d", RequestID))
+
 	var gitFetchItem GitFetchItem
 	err = json.Unmarshal(resp, &gitFetchItem)
 	if err != nil {
@@ -133,8 +137,8 @@ func (s *FetchStage) ProcessResponse(resp []byte, RequestID int) (err error) {
 }
 
 //GetTextsToProcess : produce report texts
-//TODO : heavy data; may be better to return channel
-func (s *FetchStage) GetTextsToProcess() (reportTexts []stage.ReportText, err error) {
+func (s *FetchStage) GetTextsToProcess(textQueue chan stage.ReportText) (err error) {
+	logInfo("generating texts for processing")
 	reports, err := s.Manager.SelectReportByStatus("github", stage.FETCHED)
 	filePrefix := utils.Settings.LeakGlobals.ContentDir
 
@@ -145,13 +149,15 @@ func (s *FetchStage) GetTextsToProcess() (reportTexts []stage.ReportText, err er
 
 	for _, report := range reports {
 		filename := fmt.Sprintf("%s%x", filePrefix, report.ShaHash)
+		logInfo(fmt.Sprintf("generating fragments for %s", filename))
+
 		fileData, err := utils.ReadFile(filename)
 		if err != nil {
 			logErr(err)
 			continue
 		}
 
-		reportTexts = append(reportTexts, stage.ReportText{ReportID: report.ID, Text: string(fileData)})
+		textQueue <- stage.ReportText{ReportID: report.ID, Text: string(fileData)}
 	}
 
 	return
@@ -159,6 +165,7 @@ func (s *FetchStage) GetTextsToProcess() (reportTexts []stage.ReportText, err er
 
 //ProcessTextFragment : stage interface realization
 func (s *FetchStage) ProcessTextFragment(fragment models.TextFragment) (err error) {
+	logInfo(fmt.Sprintf("processing fragment %x", fragment.ShaHash[:4]))
 	exist, err := s.Manager.CheckTextFragmentDuplicate(fragment.ShaHash)
 	if err != nil {
 		return

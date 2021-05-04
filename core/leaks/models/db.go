@@ -118,7 +118,7 @@ func (manager *Manager) SelectTextFragment(field string, value int) (frags []Tex
 
 //CheckTextFragmentDuplicate : Check for text fragment with the same hash
 func (manager *Manager) CheckTextFragmentDuplicate(ShaHash [20]byte) (exist bool, err error) {
-	query := "SELECT EXIST(SELECT id FROM " + FragmentTable + " WHERE shahash=$1);"
+	query := "SELECT EXISTS(SELECT id FROM " + FragmentTable + " WHERE shahash=$1);"
 	shaHash := fmt.Sprintf("%x", ShaHash[:])
 
 	row := manager.Database.QueryRow(query, shaHash)

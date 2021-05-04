@@ -17,23 +17,21 @@ func Fragmentize(ctx context.Context, stage Interface, nWorkers int) {
 	textQueue := make(chan ReportText, MAXCHANCAP)
 	fragmentQueue := make(chan models.TextFragment, MAXCHANCAP)
 
+	logInfo("initializing text queue")
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		defer close(textQueue)
 
-		reportTexts, err := stage.GetTextsToProcess()
+		err := stage.GetTextsToProcess(textQueue)
 		if err != nil {
 			logErr(err)
 			return
 		}
 
-		for _, reportText := range reportTexts {
-			textQueue <- reportText
-		}
-
 		return
 	}()
+
 	manager := stage.GetDBManager()
 	keywords, err := manager.SelectAllKeywords()
 
@@ -49,21 +47,34 @@ func Fragmentize(ctx context.Context, stage Interface, nWorkers int) {
 		return
 	}
 
+	logInfo("initializing fragmenter workers")
 	for i := 0; i < nWorkers; i++ {
-		go fragmenter(ctx, textQueue, fragmentQueue, &keywords, &rules)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			fragmenter(ctx, textQueue, fragmentQueue, &keywords, &rules)
+			return
+		}()
 	}
 
+	var wgProcessor sync.WaitGroup
+	logInfo("initializing text processors")
+
+	wgProcessor.Add(1)
 	go func() {
+		defer wgProcessor.Done()
 		for textFragment := range fragmentQueue {
 			err := stage.ProcessTextFragment(textFragment)
 			if err != nil {
 				logErr(err)
 			}
 		}
+		return
 	}()
 
 	wg.Wait()
 	close(fragmentQueue)
+	wgProcessor.Wait()
 	return
 }
 

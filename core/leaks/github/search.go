@@ -34,7 +34,6 @@ func buildGitSearchRequest(query string, offset int, token string) (req *http.Re
 
 	var requestBody bytes.Buffer
 	url := fmt.Sprintf("https://api.github.com/search/code?q=%s&per_page=100&page=%d", query, offset)
-	logInfo(fmt.Sprintf("URL: %s", url))
 
 	req, err = http.NewRequest("GET", url, &requestBody)
 
@@ -75,7 +74,12 @@ func (s *SearchStage) GetDBManager() models.Manager {
 
 //BuildRequests : generate search requests
 func (s *SearchStage) BuildRequests(reqQueue chan stage.Request) (err error) {
-	keywords := utils.Settings.LeakGlobals.Keywords
+	keywords, err := s.Manager.SelectKeywordByType(models.KWSEARCHABLE)
+	if err != nil {
+		logErr(err)
+		return
+	}
+
 	tokens := utils.Settings.Github.Tokens
 	desiredRate := rate.Limit(utils.Settings.Github.RequestRate) * rate.Every(time.Second)
 	rl := rate.NewLimiter(desiredRate, 1)
@@ -85,7 +89,7 @@ func (s *SearchStage) BuildRequests(reqQueue chan stage.Request) (err error) {
 	// nQueries := len(keywords) * len(langs)
 	for i, lang := range Langs {
 		for j, keyword := range keywords {
-			query := buildGitSearchQuery(keyword, lang, false)
+			query := buildGitSearchQuery(keyword.Value, lang, false)
 			token := tokens[(i*len(keywords)+j)%len(tokens)]
 
 			offset := 0
@@ -137,7 +141,7 @@ func (s *SearchStage) BuildRequests(reqQueue chan stage.Request) (err error) {
 				}
 
 				reqQueue <- stage.Request{ID: id, Req: req}
-				s.RequestParams[id] = gitRequestParams{query, keyword, offset}
+				s.RequestParams[id] = gitRequestParams{query, keyword.Value, offset}
 				id++
 			}
 		}
