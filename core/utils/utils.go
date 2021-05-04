@@ -4,6 +4,7 @@ import (
 	"compress/gzip"
 	"io"
 	"log"
+	"math/rand"
 	"net/http"
 	"os"
 	"strings"
@@ -56,6 +57,17 @@ func ReadFile(filename string) (fileData []byte, err error) {
 
 	}
 	return
+}
+
+//RandBytes : generate random string of length n
+func RandBytes(n int) []byte {
+	rand.Seed(time.Now().Unix())
+	b := make([]byte, n)
+	for i := range b {
+		b[i] = byte(rand.Intn(256))
+	}
+
+	return b
 }
 
 //DoRequest : do http request

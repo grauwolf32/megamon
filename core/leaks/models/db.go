@@ -79,6 +79,14 @@ func (manager *Manager) DeleteTextFragmentByID(ID int) (err error) {
 	return
 }
 
+//CountTextFragments : return count of text fragments with defined type
+func (manager *Manager) CountTextFragments(field string, value int) (count int, err error) {
+	query := "SELECT COUNT(id) FROM " + FragmentTable + " WHERE " + field + "=$1;"
+	row := manager.Database.QueryRow(query, value)
+	err = row.Scan(&count)
+	return
+}
+
 //SelectTextFragment : select text fragment from db
 func (manager *Manager) SelectTextFragment(field string, value int) (frags []TextFragment, err error) {
 	query := "SELECT id, content, reject_id, report_id, shahash, keywords FROM " + FragmentTable + " WHERE " + field + "=$1;"
@@ -157,33 +165,12 @@ func (manager *Manager) DeleteReportByID(ID int) (err error) {
 }
 
 //SelectReportByID : select report from db
-func (manager *Manager) SelectReportByID(ID int) (reports []Report, err error) {
+func (manager *Manager) SelectReportByID(ID int) (rep Report, err error) {
+	var shaHashStr string
+
 	query := "SELECT id, type, status, data, shahash, time FROM " + ReportTable + " WHERE id=$1;"
-
-	rows, err := manager.Database.Query(query, ID)
-	if err != nil {
-		return
-	}
-
-	defer rows.Close()
-	for rows.Next() {
-		var rep Report
-		var shaHashStr string
-
-		err = rows.Scan(&rep.ID, &rep.Type, &rep.Status, &rep.Data, &shaHashStr, &rep.Time)
-		if err != nil {
-			return
-		}
-
-		shaHash, DecErr := hex.DecodeString(shaHashStr)
-		if DecErr != nil {
-			return
-		}
-
-		copy(rep.ShaHash[:], shaHash[:20])
-		reports = append(reports, rep)
-	}
-
+	row := manager.Database.QueryRow(query, ID)
+	err = row.Scan(&rep.ID, &rep.Type, &rep.Status, &rep.Data, &shaHashStr, &rep.Time)
 	return
 }
 
@@ -436,19 +423,13 @@ func createRulesTable(tableName string, conn *sql.DB) (err error) {
 	}
 
 	query = "INSERT INTO " + tableName + " (name, rule) VALUES ($1, $2)"
-	_, err = conn.Exec(query, "manual", "")
-	if err != nil {
-		return
+	predefined := []string{"none", "manual", "verified", "auto_removed"}
+	for _, rule := range predefined {
+		_, err = conn.Exec(query, rule, "")
+		if err != nil {
+			return
+		}
 	}
 
-	_, err = conn.Exec(query, "verified", "")
-	if err != nil {
-		return
-	}
-
-	_, err = conn.Exec(query, "auto_remove", "")
-	if err != nil {
-		return
-	}
 	return
 }

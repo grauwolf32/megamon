@@ -44,3 +44,18 @@ const (
 	//KWINNER : non searchable keword type
 	KWINNER
 )
+
+const (
+	//RULENONE : default rejection status - not rejected
+	RULENONE = iota
+
+	//RULEMANUAL : fragment was manually rejected
+	RULEMANUAL
+
+	//RULEVERIFIED : fragment was manually verified
+	RULEVERIFIED
+
+	//RULEAUTOREMOVED : fragment was automatically removed by regexp
+	RULEAUTOREMOVED
+)
+
