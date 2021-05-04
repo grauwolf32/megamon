@@ -39,7 +39,7 @@ func getReports(ctx echo.Context) (err error) {
 	if err != nil {
 		return ctx.String(500, err.Error())
 	}
-	return ctx.JSON(200, reportJSON)
+	return ctx.JSONBlob(200, reportJSON)
 }
 
 func getFragmentInfo(ctx echo.Context) (err error) {
@@ -68,7 +68,7 @@ func getFragmentInfo(ctx echo.Context) (err error) {
 		return ctx.String(500, err.Error())
 	}
 
-	return ctx.JSON(200, report.Data)
+	return ctx.JSONBlob(200, report.Data)
 }
 
 func markFragment(ctx echo.Context) (err error) {
@@ -132,7 +132,7 @@ func getSettings(ctx echo.Context) (err error) {
 	if err != nil {
 		return ctx.String(500, err.Error())
 	}
-	return ctx.JSON(200, settings)
+	return ctx.JSONBlob(200, settings)
 }
 
 func updateSettings(ctx echo.Context) (err error) {
@@ -181,7 +181,7 @@ func getRegexps(ctx echo.Context) (err error) {
 		return ctx.String(500, err.Error())
 	}
 
-	return ctx.JSON(200, jsonRules)
+	return ctx.JSONBlob(200, jsonRules)
 }
 
 func delRegexp(ctx echo.Context) (err error) {
@@ -196,7 +196,7 @@ func delRegexp(ctx echo.Context) (err error) {
 		return ctx.String(500, err.Error())
 	}
 
-	return ctx.JSON(200, "OK")
+	return ctx.String(200, "OK")
 }
 
 func addRegexp(ctx echo.Context) (err error) {
@@ -216,7 +216,7 @@ func addRegexp(ctx echo.Context) (err error) {
 		return ctx.String(500, err.Error())
 	}
 
-	return ctx.JSON(200, ruleJSON)
+	return ctx.JSONBlob(200, ruleJSON)
 }
 
 func getKeywords(ctx echo.Context) (err error) {
@@ -231,7 +231,7 @@ func getKeywords(ctx echo.Context) (err error) {
 		return ctx.String(500, err.Error())
 	}
 
-	return ctx.JSON(200, keywordsJSON)
+	return ctx.JSONBlob(200, keywordsJSON)
 }
 
 func delKeyword(ctx echo.Context) (err error) {
@@ -261,5 +261,5 @@ func addKeyword(ctx echo.Context) (err error) {
 	keyword.ID = ID
 
 	keywordJSON, err := json.Marshal(keyword)
-	return ctx.JSON(200, keywordJSON)
+	return ctx.JSONBlob(200, keywordJSON)
 }

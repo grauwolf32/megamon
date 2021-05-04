@@ -30,14 +30,13 @@ func (t *Template) Render(w io.Writer, name string, data interface{}, c echo.Con
 func (b *Backend) Start() {
 	e := echo.New()
 	t := &Template{
-		templates: template.Must(template.ParseGlob("../frontend/templates/*")),
+		templates: template.Must(template.ParseGlob("web/frontend/templates/*")),
 	}
 	secret := utils.RandBytes(20)
 	cookieStore := sessions.NewCookieStore(secret)
 	csMiddleware := session.Middleware(cookieStore)
 	e.Use(csMiddleware)
 	e.Renderer = t
-
 	b.DBManager.Init()
 
 	//Pass database to context
@@ -48,13 +47,13 @@ func (b *Backend) Start() {
 		}
 	})
 
-	e.File("/", "../frontend/index.html", loginRequired)
-	e.Static("/static", "../frontend/static/")
+	e.File("/", "web/frontend/index.html", loginRequired)
+	e.Static("/static", "web/frontend/static/")
 
-	e.File("/leaks/controls", "../frontend/index.html", loginRequired)
-	e.File("/leaks/settings", "../frontend/index.html", loginRequired)
-	e.File("/leaks/github", "../frontend/index.html", loginRequired)
-	e.File("/leaks/gist", "../frontend/index.html", loginRequired)
+	e.File("/leaks/controls", "web/frontend/index.html", loginRequired)
+	e.File("/leaks/settings", "web/frontend/index.html", loginRequired)
+	e.File("/leaks/github", "web/frontend/index.html", loginRequired)
+	e.File("/leaks/gist", "web/frontend/index.html", loginRequired)
 
 	e.GET("/leaks/api/report/frags/:datatype/:status", getReports, loginRequired)
 	e.GET("/leaks/api/report/info/:frag_id", getFragmentInfo, loginRequired)

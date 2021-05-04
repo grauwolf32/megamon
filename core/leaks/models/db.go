@@ -302,7 +302,7 @@ func (manager *Manager) DeleteKeyword(ID int) (err error) {
 //SelectKeywordByType : select all keywords with the same type
 func (manager *Manager) SelectKeywordByType(wordType int) (keywords []Keyword, err error) {
 	query := "SELECT id, keyword, type FROM " + KeywordsTable + " WHERE type=$1;"
-	rows, err := manager.Database.Query(query)
+	rows, err := manager.Database.Query(query, wordType)
 	if err != nil {
 		return
 	}
