@@ -86,9 +86,13 @@ func buildTextFragment(reportText ReportText, context fragment.Fragment, keyword
 		return
 	}
 
-	textFragment.ShaHash = sha1.Sum([]byte(textFragment.Text))
+	textFragment.ShaHash = fmt.Sprintf("%x", sha1.Sum([]byte(textFragment.Text)))
 	for _, keyword := range *keywords {
-		textFragment.Keywords = append(textFragment.Keywords, []int{keyword.Offset - context.Offset, keyword.Length})
+		frag := keyword
+		frag.Offset -= context.Offset
+		frag.ConvertToRunes(reportText.Text)
+
+		textFragment.Keywords = append(textFragment.Keywords, []int{frag.Offset, frag.Length})
 	}
 
 	return

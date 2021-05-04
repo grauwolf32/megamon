@@ -4,14 +4,13 @@ import (
 	"context"
 	"os"
 
-	"github.com/megamon/core/leaks/github"
 	"github.com/megamon/core/leaks/models"
 	"github.com/megamon/core/utils"
 	"github.com/megamon/web/backend"
 )
 
 func main() {
-	ctx := context.Background()
+	_ = context.Background()
 	utils.InitConfig("./config/config.yaml")
 
 	if _, err := os.Stat(utils.Settings.LeakGlobals.LogDir); os.IsNotExist(err) {
@@ -36,12 +35,14 @@ func main() {
 	defer manager.Close()
 	models.Init(manager.Database)
 
-	go func() {
-		err = github.RunGitSearch(ctx)
-		if err != nil {
-			utils.ErrorLogger.Fatal(err.Error())
-		}
-	}()
+	/*
+		go func() {
+			err = github.RunGitSearch(ctx)
+			if err != nil {
+				utils.ErrorLogger.Fatal(err.Error())
+			}
+		}()
+	*/
 
 	var b backend.Backend
 	b.Start()

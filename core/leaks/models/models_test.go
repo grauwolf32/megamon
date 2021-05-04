@@ -1,6 +1,7 @@
 package models
 
 import (
+	"fmt"
 	"os"
 	"testing"
 
@@ -82,7 +83,8 @@ func TestTextFragmentOps1(t *testing.T) {
 	tf.ReportID = 111
 	tf.RejectID = 1
 	tf.Text = "test fragment"
-	tf.ShaHash = [20]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20}
+	tf.Type = "test"
+	tf.ShaHash = fmt.Sprintf("%x", [20]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20})
 	tf.Keywords = [][]int{{1, 2}, {3, 4}}
 
 	ID, err := manager.InsertTextFragment(&tf)
@@ -109,6 +111,7 @@ func TestTextFragmentOps1(t *testing.T) {
 	v = v || ntf.RejectID != tf.RejectID
 	v = v || ntf.Text != tf.Text
 	v = v || ntf.ShaHash != tf.ShaHash
+	v = v || ntf.Type != tf.Type
 
 	if v {
 		t.Errorf("Input object: %v\n Aquired object: %v", tf, ntf)

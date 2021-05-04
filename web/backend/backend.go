@@ -55,7 +55,8 @@ func (b *Backend) Start() {
 	e.File("/leaks/github", "web/frontend/index.html", loginRequired)
 	e.File("/leaks/gist", "web/frontend/index.html", loginRequired)
 
-	e.GET("/leaks/api/report/frags/:datatype/:status", getReports, loginRequired)
+	e.GET("/leaks/api/report/frags/:datatype/:status", getFragments, loginRequired)
+	e.GET("/leaks/api/report/count/:datatype/:status", getFragmentCount, loginRequired)
 	e.GET("/leaks/api/report/info/:frag_id", getFragmentInfo, loginRequired)
 	e.GET("/leaks/api/report/mark/:frag_id/:status", markFragment, loginRequired)
 

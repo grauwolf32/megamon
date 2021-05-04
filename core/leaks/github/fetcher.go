@@ -30,14 +30,14 @@ func buildFetchRequest(url, token string) (*http.Request, error) {
 
 //FetchStage struct for the interface
 type FetchStage struct {
-	ReportHashes map[int][20]byte
+	ReportHashes map[int]string
 	ReportIDs    map[int]int
 	Manager      models.Manager
 }
 
 //Init : constructor
 func (s *FetchStage) Init() (err error) {
-	s.ReportHashes = make(map[int][20]byte)
+	s.ReportHashes = make(map[int]string)
 	s.ReportIDs = make(map[int]int)
 	err = s.Manager.Init()
 	return
@@ -148,7 +148,7 @@ func (s *FetchStage) GetTextsToProcess(textQueue chan stage.ReportText) (err err
 	}
 
 	for _, report := range reports {
-		filename := fmt.Sprintf("%s%x", filePrefix, report.ShaHash)
+		filename := fmt.Sprintf("%s%s", filePrefix, report.ShaHash)
 		logInfo(fmt.Sprintf("generating fragments for %s", filename))
 
 		fileData, err := utils.ReadFile(filename)
@@ -171,6 +171,7 @@ func (s *FetchStage) ProcessTextFragment(fragment models.TextFragment) (err erro
 		return
 	}
 	if !exist {
+		fragment.Type = "github"
 		_, err = s.Manager.InsertTextFragment(&fragment)
 		return
 	}

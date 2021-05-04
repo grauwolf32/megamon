@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"regexp"
 	"strconv"
 
 	"github.com/labstack/echo"
@@ -24,24 +25,94 @@ type Context struct {
 	echo.Context
 }
 
-func getReports(ctx echo.Context) (err error) {
-	reportType := ctx.Param("datatype")
-	reportStatus := ctx.Param("status")
+func getFragments(ctx echo.Context) (err error) {
+	fragmentType := ctx.Param("datatype")
+	rejectID, err := strconv.Atoi(ctx.Param("status"))
+	if err != nil {
+		return ctx.String(400, err.Error())
+	}
+
+	extensions := make([]string, 3)
+	valid, err := validate(fragmentType)
+	if err != nil {
+		return ctx.String(400, err.Error())
+	}
+
+	if !valid {
+		return ctx.String(400, "wrong data type")
+	}
+
+	filterQuery := "AND type='" + fragmentType + "' "
+	extensions = append(extensions, filterQuery)
+
+	limitParam := ctx.FormValue("limit")
+	if limitParam != "" {
+		_, err := strconv.Atoi(limitParam)
+		if err != nil {
+			return ctx.String(400, err.Error())
+		}
+		limitQuery := "LIMIT " + limitParam + " "
+		extensions = append(extensions, limitQuery)
+	}
+
+	offsetParam := ctx.FormValue("offset")
+	if offsetParam != "" {
+		_, err := strconv.Atoi(offsetParam)
+		if err != nil {
+			return ctx.String(400, err.Error())
+		}
+
+		offsetQuery := "OFFSET " + offsetParam
+		extensions = append(extensions, offsetQuery)
+	}
 
 	manager := ctx.(Context).backend.DBManager
-	reports, err := manager.SelectReportByStatus(reportType, reportStatus)
+	fragments, err := manager.SelectTextFragment("reject_id", rejectID, extensions...)
 
 	if err != nil {
 		return ctx.String(500, err.Error())
 	}
 
-	reportJSON, err := json.Marshal(reports)
+	reportJSON, err := json.Marshal(fragments)
 	if err != nil {
 		return ctx.String(500, err.Error())
 	}
 	return ctx.JSONBlob(200, reportJSON)
 }
 
+func getFragmentCount(ctx echo.Context) (err error) {
+	fragmentType := ctx.Param("datatype")
+	rejectID, err := strconv.Atoi(ctx.Param("status"))
+	if err != nil {
+		return ctx.String(400, err.Error())
+	}
+
+	extensions := make([]string, 3)
+	valid, err := validate(fragmentType)
+	if err != nil {
+		return ctx.String(400, err.Error())
+	}
+
+	if !valid {
+		return ctx.String(400, "wrong data type")
+	}
+
+	filterQuery := "AND type='" + fragmentType + "' "
+	extensions = append(extensions, filterQuery)
+
+	manager := ctx.(Context).backend.DBManager
+	count, err := manager.CountTextFragments("reject_id", rejectID, extensions...)
+
+	if err != nil {
+		return ctx.String(400, err.Error())
+	}
+
+	return ctx.JSON(200, struct {
+		Count    int    `json:"count"`
+		Type     string `json:"type"`
+		RejectID int    `json:"reject_id"`
+	}{count, fragmentType, rejectID})
+}
 func getFragmentInfo(ctx echo.Context) (err error) {
 	fragID, err := strconv.Atoi(ctx.Param("frag_id"))
 
@@ -262,4 +333,9 @@ func addKeyword(ctx echo.Context) (err error) {
 
 	keywordJSON, err := json.Marshal(keyword)
 	return ctx.JSONBlob(200, keywordJSON)
+}
+
+func validate(text string) (bool, error) {
+	alphabetic, err := regexp.Compile("[a-zA-Z]+")
+	return alphabetic.Match([]byte(text)), err
 }

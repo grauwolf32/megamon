@@ -2,7 +2,6 @@ package models
 
 import (
 	"database/sql"
-	"encoding/hex"
 	"encoding/json"
 	"regexp"
 
@@ -52,16 +51,15 @@ func (manager *Manager) Close() {
 
 //InsertTextFragment : insert text fragment into db
 func (manager *Manager) InsertTextFragment(frag *TextFragment) (ID int, err error) {
-	query := "INSERT INTO " + FragmentTable + " (content, reject_id, report_id, shahash, keywords) VALUES ($1, $2, $3, $4, $5) RETURNING id;"
+	query := "INSERT INTO " + FragmentTable + " (content, reject_id, report_id, type, shahash, keywords) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id;"
 	kwData, err := json.Marshal(frag.Keywords)
-	shaHash := fmt.Sprintf("%x", string(frag.ShaHash[:]))
 	content := []byte(frag.Text)
 
 	if err != nil {
 		return 0, err
 	}
 
-	err = manager.Database.QueryRow(query, content, frag.RejectID, frag.ReportID, shaHash, kwData).Scan(&ID)
+	err = manager.Database.QueryRow(query, content, frag.RejectID, frag.ReportID, frag.Type, frag.ShaHash, kwData).Scan(&ID)
 	return
 }
 
@@ -80,16 +78,26 @@ func (manager *Manager) DeleteTextFragmentByID(ID int) (err error) {
 }
 
 //CountTextFragments : return count of text fragments with defined type
-func (manager *Manager) CountTextFragments(field string, value int) (count int, err error) {
-	query := "SELECT COUNT(id) FROM " + FragmentTable + " WHERE " + field + "=$1;"
+func (manager *Manager) CountTextFragments(field string, value int, extensions ...string) (count int, err error) {
+	extension := ""
+	for _, ext := range extensions {
+		extension += ext
+	}
+
+	query := "SELECT COUNT(id) FROM " + FragmentTable + " WHERE " + field + "=$1 " + extension + ";"
 	row := manager.Database.QueryRow(query, value)
 	err = row.Scan(&count)
 	return
 }
 
 //SelectTextFragment : select text fragment from db
-func (manager *Manager) SelectTextFragment(field string, value int) (frags []TextFragment, err error) {
-	query := "SELECT id, content, reject_id, report_id, shahash, keywords FROM " + FragmentTable + " WHERE " + field + "=$1;"
+func (manager *Manager) SelectTextFragment(field string, value int, extensions ...string) (frags []TextFragment, err error) {
+	extension := ""
+	for _, ext := range extensions {
+		extension += ext
+	}
+
+	query := "SELECT id, content, reject_id, report_id, type, shahash, keywords FROM " + FragmentTable + " WHERE " + field + "=$1 " + extension + ";"
 	rows, err := manager.Database.Query(query, value)
 
 	if err != nil {
@@ -100,9 +108,8 @@ func (manager *Manager) SelectTextFragment(field string, value int) (frags []Tex
 		var frag TextFragment
 		var content []byte
 		var kwData []byte
-		var shaHashStr string
 
-		err = rows.Scan(&frag.ID, &content, &frag.RejectID, &frag.ReportID, &shaHashStr, &kwData)
+		err = rows.Scan(&frag.ID, &content, &frag.RejectID, &frag.ReportID, &frag.Type, &frag.ShaHash, &kwData)
 		if err != nil {
 			return
 		}
@@ -112,12 +119,6 @@ func (manager *Manager) SelectTextFragment(field string, value int) (frags []Tex
 			return
 		}
 
-		shaHash, DecErr := hex.DecodeString(shaHashStr)
-		if DecErr != nil {
-			return
-		}
-
-		copy(frag.ShaHash[:], shaHash[:20])
 		frag.Text = string(content)
 		frags = append(frags, frag)
 	}
@@ -125,11 +126,10 @@ func (manager *Manager) SelectTextFragment(field string, value int) (frags []Tex
 }
 
 //CheckTextFragmentDuplicate : Check for text fragment with the same hash
-func (manager *Manager) CheckTextFragmentDuplicate(ShaHash [20]byte) (exist bool, err error) {
+func (manager *Manager) CheckTextFragmentDuplicate(ShaHash string) (exist bool, err error) {
 	query := "SELECT EXISTS(SELECT id FROM " + FragmentTable + " WHERE shahash=$1);"
-	shaHash := fmt.Sprintf("%x", ShaHash[:])
 
-	row := manager.Database.QueryRow(query, shaHash)
+	row := manager.Database.QueryRow(query, ShaHash)
 	err = row.Scan(&exist)
 	return
 }
@@ -137,9 +137,8 @@ func (manager *Manager) CheckTextFragmentDuplicate(ShaHash [20]byte) (exist bool
 //InsertReport : inser report to db
 func (manager *Manager) InsertReport(report Report) (ID int, err error) {
 	query := "INSERT INTO " + ReportTable + " (shahash, type, status, data, time) VALUES ($1, $2, $3, $4, $5) RETURNING id;"
-	shaHash := fmt.Sprintf("%x", string(report.ShaHash[:]))
 
-	err = manager.Database.QueryRow(query, shaHash, report.Type, report.Status, report.Data, report.Time).Scan(&ID)
+	err = manager.Database.QueryRow(query, report.ShaHash, report.Type, report.Status, report.Data, report.Time).Scan(&ID)
 	return
 }
 
@@ -175,8 +174,13 @@ func (manager *Manager) SelectReportByID(ID int) (rep Report, err error) {
 }
 
 //SelectReportByStatus : select report by it's type & status
-func (manager *Manager) SelectReportByStatus(reportType, status string) (reports []Report, err error) {
-	query := "SELECT id, type, status, data, shahash, time FROM " + ReportTable + " WHERE type=$1 AND status=$2;"
+func (manager *Manager) SelectReportByStatus(reportType, status string, extensions ...string) (reports []Report, err error) {
+	extension := ""
+	for _, ext := range extensions {
+		extension += ext
+	}
+
+	query := "SELECT id, type, status, data, shahash, time FROM " + ReportTable + " WHERE type=$1 AND status=$2 " + extension + ";"
 	rows, err := manager.Database.Query(query, reportType, status)
 	if err != nil {
 		return
@@ -185,19 +189,12 @@ func (manager *Manager) SelectReportByStatus(reportType, status string) (reports
 	defer rows.Close()
 	for rows.Next() {
 		var rep Report
-		var shaHashStr string
 
-		err = rows.Scan(&rep.ID, &rep.Type, &rep.Status, &rep.Data, &shaHashStr, &rep.Time)
+		err = rows.Scan(&rep.ID, &rep.Type, &rep.Status, &rep.Data, &rep.ShaHash, &rep.Time)
 		if err != nil {
 			return
 		}
 
-		shaHash, DecErr := hex.DecodeString(shaHashStr)
-		if DecErr != nil {
-			return
-		}
-
-		copy(rep.ShaHash[:], shaHash[:20])
 		reports = append(reports, rep)
 	}
 
@@ -205,11 +202,10 @@ func (manager *Manager) SelectReportByStatus(reportType, status string) (reports
 }
 
 //CheckReportDuplicate : Check for report with the same hash
-func (manager *Manager) CheckReportDuplicate(ShaHash []byte) (exist bool, err error) {
+func (manager *Manager) CheckReportDuplicate(ShaHash string) (exist bool, err error) {
 	query := "SELECT EXISTS(SELECT id FROM " + ReportTable + " WHERE shahash=$1);"
-	shaHash := fmt.Sprintf("%x", ShaHash)
 
-	row := manager.Database.QueryRow(query, shaHash)
+	row := manager.Database.QueryRow(query, ShaHash)
 	err = row.Scan(&exist)
 	return
 }
@@ -349,7 +345,6 @@ func (manager *Manager) SelectKeywordByID(ID int) (keyword Keyword, err error) {
 
 //Init :  init checks & table creation
 func Init(conn *sql.DB) (err error) {
-	utils.InfoLogger.Println("initializing database")
 	tables := make(map[string](func(name string, conn *sql.DB) (err error)), 10)
 
 	tables[FragmentTable] = createFragmentTable
@@ -398,7 +393,7 @@ func DropTable(tableName string, conn *sql.DB) (err error) {
 }
 
 func createFragmentTable(tableName string, conn *sql.DB) (err error) {
-	query := "CREATE TABLE " + tableName + " (id serial, content bytea, reject_id integer, report_id integer, shahash varchar PRIMARY KEY, keywords jsonb);"
+	query := "CREATE TABLE " + tableName + " (id serial, content bytea, reject_id integer, report_id integer,type varchar, shahash varchar PRIMARY KEY, keywords jsonb);"
 	_, err = conn.Exec(query)
 	return
 }

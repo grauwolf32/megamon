@@ -4,12 +4,12 @@ import "regexp"
 
 //Report : report structure
 type Report struct {
-	ShaHash [20]byte `json:"sha1"`
-	Time    int64    `json:"time"`
-	Type    string   `json:"type"`
-	Status  string   `json:"status"`
-	Data    []byte   `json:"data"`
-	ID      int      `json:"id"`
+	ShaHash string `json:"sha1"`
+	Time    int64  `json:"time"`
+	Type    string `json:"type"`
+	Status  string `json:"status"`
+	Data    []byte `json:"data"`
+	ID      int    `json:"id"`
 }
 
 //RejectRule : description of reject rule
@@ -22,12 +22,13 @@ type RejectRule struct {
 
 //TextFragment : fragments of text with keywords
 type TextFragment struct {
-	ShaHash  [20]byte `json:"sha1"`
-	Text     string   `json:"text"`
-	ID       int      `json:"id"`
-	ReportID int      `json:"report_id"`
-	RejectID int      `json:"reject_id"`
-	Keywords [][]int  `json:"keywords"`
+	ShaHash  string  `json:"sha1"`
+	Text     string  `json:"text"`
+	Type     string  `json:"type"`
+	ID       int     `json:"id"`
+	ReportID int     `json:"report_id"`
+	RejectID int     `json:"reject_id"`
+	Keywords [][]int `json:"keywords"`
 }
 
 //Keyword : auxilary data type
@@ -58,4 +59,3 @@ const (
 	//RULEAUTOREMOVED : fragment was automatically removed by regexp
 	RULEAUTOREMOVED
 )
-

@@ -3,7 +3,6 @@ package github
 import (
 	"bytes"
 	"context"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -175,8 +174,7 @@ func (s *SearchStage) ProcessResponse(resp []byte, requestID int) (err error) {
 	}
 
 	for _, gihubResponseItem := range githubResponse.Items {
-		ShaHash, err := hex.DecodeString(gihubResponseItem.ShaHash)
-		exist, err := s.Manager.CheckReportDuplicate(ShaHash)
+		exist, err := s.Manager.CheckReportDuplicate(gihubResponseItem.ShaHash)
 
 		if err != nil {
 			logErr(err)
@@ -191,11 +189,7 @@ func (s *SearchStage) ProcessResponse(resp []byte, requestID int) (err error) {
 		report.Type = "github"
 		report.Status = stage.PROCESSED
 		report.Time = time.Now().Unix()
-		copy(report.ShaHash[:], ShaHash[:20])
-
-		if err != nil {
-			return err
-		}
+		report.ShaHash = gihubResponseItem.ShaHash
 
 		data, err := json.Marshal(gihubResponseItem)
 		if err != nil {
