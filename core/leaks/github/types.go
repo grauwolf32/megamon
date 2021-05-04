@@ -1,9 +1,9 @@
 package github
 
 import (
-	"fmt"
+	"time"
 
-	"github.com/megamon/core/utils"
+	"golang.org/x/time/rate"
 )
 
 const (
@@ -56,19 +56,15 @@ type GitSearchAPIResponse struct {
 	Items             []GitSearchItem `json:"items"`
 }
 
-func logErr(err error) {
-	fmt.Println("[ERROR] " + err.Error())
-	utils.ErrorLogger.Println(err.Error())
-	return
-}
-
-func logInfo(info string) {
-	utils.InfoLogger.Println(info)
-	return
+//RateLimiter : rate limit request to github
+type RateLimiter struct {
+	RequestRate float64
+	Duration    time.Duration
+	Limiter     *rate.Limiter
 }
 
 // Langs : supported langs for search
-var Langs = [...]string{"C", "C#", "C++", "CoffeeScript", "CSS", "Dart", "DM", "Elixir", "Go", "Groovy", "HTML", "Java",
+var Langs = [...]string{"", "C", "C#", "C++", "CoffeeScript", "CSS", "Dart", "DM", "Elixir", "Go", "Groovy", "HTML", "Java",
 	"JavaScript", "Kotlin", "Objective-C", "Perl", "PHP", "PowerShell", "Python", "Ruby", "Rust",
 	"Scala", "Shell", "Swift", "TypeScript", "CSV", "JSON", "Makefile", "Markdown", "YAML", "XML",
 	"Diff", "Erlang", "GraphQL", "Jupyter+Notebook", "Lua", "Protocol+Buffer", "Public+Key", "SQL",

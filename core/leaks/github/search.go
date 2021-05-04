@@ -2,6 +2,7 @@ package github
 
 import (
 	"bytes"
+	"context"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -12,6 +13,7 @@ import (
 	"github.com/megamon/core/leaks/models"
 	"github.com/megamon/core/leaks/stage"
 	"github.com/megamon/core/utils"
+	"golang.org/x/time/rate"
 )
 
 func buildGitSearchQuery(keyword string, lang string, infile bool) (query string) {
@@ -28,8 +30,12 @@ func buildGitSearchQuery(keyword string, lang string, infile bool) (query string
 }
 
 func buildGitSearchRequest(query string, offset int, token string) (req *http.Request, err error) {
+	logInfo(fmt.Sprintf("building search request: %s %d %s", query, offset, token[:4]))
+
 	var requestBody bytes.Buffer
 	url := fmt.Sprintf("https://api.github.com/search/code?q=%s&per_page=100&page=%d", query, offset)
+	logInfo(fmt.Sprintf("URL: %s", url))
+
 	req, err = http.NewRequest("GET", url, &requestBody)
 
 	if err != nil {
@@ -52,13 +58,14 @@ type SearchStage struct {
 //Init : constructor
 func (s *SearchStage) Init() (err error) {
 	s.RequestParams = make(map[int]gitRequestParams)
-	//TODO Init Manager
+	err = s.Manager.Init()
 	return
 }
 
 //Close : destructor
 func (s *SearchStage) Close() {
-	//TODO Close Manager
+	s.Manager.Close()
+	return
 }
 
 //GetDBManager : stage interface realization
@@ -67,11 +74,13 @@ func (s *SearchStage) GetDBManager() models.Manager {
 }
 
 //BuildRequests : generate search requests
-func (s *SearchStage) BuildRequests() (reqQueue chan stage.Request, err error) {
-	defer close(reqQueue)
+func (s *SearchStage) BuildRequests(reqQueue chan stage.Request) (err error) {
 	keywords := utils.Settings.LeakGlobals.Keywords
 	tokens := utils.Settings.Github.Tokens
-	var id int
+	desiredRate := rate.Limit(utils.Settings.Github.RequestRate) * rate.Every(time.Second)
+	rl := rate.NewLimiter(desiredRate, 1)
+	ctx := context.Background()
+	id := 0
 
 	// nQueries := len(keywords) * len(langs)
 	for i, lang := range Langs {
@@ -83,11 +92,11 @@ func (s *SearchStage) BuildRequests() (reqQueue chan stage.Request, err error) {
 			req, err := buildGitSearchRequest(query, offset, token)
 
 			if err != nil {
-				utils.ErrorLogger.Println(err.Error())
+				logErr(err)
 				continue
 			}
 
-			// RateLimiter
+			_ = rl.Wait(ctx)
 			resp, err := utils.DoRequest(req)
 			if err != nil {
 				logErr(err)
@@ -122,9 +131,8 @@ func (s *SearchStage) BuildRequests() (reqQueue chan stage.Request, err error) {
 			for offset := 0; offset < n; offset++ {
 				token := tokens[id%len(tokens)]
 				req, err := buildGitSearchRequest(query, offset, token)
-
 				if err != nil {
-					utils.ErrorLogger.Println(err.Error())
+					logErr(err)
 					continue
 				}
 
@@ -134,7 +142,6 @@ func (s *SearchStage) BuildRequests() (reqQueue chan stage.Request, err error) {
 			}
 		}
 	}
-
 	return
 }
 
@@ -155,6 +162,8 @@ func (s *SearchStage) CheckResponse(resp stage.Response, reqCount int) (res int)
 
 //ProcessResponse : process search response
 func (s *SearchStage) ProcessResponse(resp []byte, requestID int) (err error) {
+	logInfo(fmt.Sprintf("processing search API response from request : %d", requestID))
+
 	var githubResponse GitSearchAPIResponse
 	err = json.Unmarshal(resp, &githubResponse)
 	if err != nil {
@@ -176,7 +185,7 @@ func (s *SearchStage) ProcessResponse(resp []byte, requestID int) (err error) {
 
 		var report models.Report
 		report.Type = "github"
-		report.Status = "processing"
+		report.Status = stage.PROCESSED
 		report.Time = time.Now().Unix()
 		copy(report.ShaHash[:], ShaHash[:20])
 

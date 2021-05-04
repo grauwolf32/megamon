@@ -94,7 +94,7 @@ func checkKeywordFragment(rules *[]models.RejectRule, frag, keyword fragment.Fra
 	}
 
 	if keyword.Offset < frag.Offset || keyword.Offset+keyword.Length > frag.Offset+frag.Length {
-		err = fmt.Errorf("Keyword is out of the fragment")
+		err = fmt.Errorf("keyword is out of the fragment")
 		return
 	}
 

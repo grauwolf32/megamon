@@ -48,9 +48,9 @@ func (s *FetchStage) Close() {
 }
 
 //BuildRequests : generate search requests
-func (s *FetchStage) BuildRequests() (reqQueue chan stage.Request, err error) {
+func (s *FetchStage) BuildRequests(reqQueue chan stage.Request) (err error) {
 	tokens := utils.Settings.Github.Tokens
-	reports, err := s.Manager.SelectReportByStatus("github", "processing")
+	reports, err := s.Manager.SelectReportByStatus("github", stage.PROCESSED)
 	if err != nil {
 		return
 	}
@@ -128,14 +128,14 @@ func (s *FetchStage) ProcessResponse(resp []byte, RequestID int) (err error) {
 	}
 
 	reportID := s.ReportIDs[RequestID]
-	s.Manager.UpdateReportStatus(reportID, "fetched")
+	s.Manager.UpdateReportStatus(reportID, stage.FETCHED)
 	return
 }
 
 //GetTextsToProcess : produce report texts
 //TODO : heavy data; may be better to return channel
 func (s *FetchStage) GetTextsToProcess() (reportTexts []stage.ReportText, err error) {
-	reports, err := s.Manager.SelectReportByStatus("github", "fetched")
+	reports, err := s.Manager.SelectReportByStatus("github", stage.FETCHED)
 	filePrefix := utils.Settings.LeakGlobals.ContentDir
 
 	if err != nil {

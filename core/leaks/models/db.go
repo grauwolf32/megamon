@@ -128,11 +128,10 @@ func (manager *Manager) CheckTextFragmentDuplicate(ShaHash [20]byte) (exist bool
 
 //InsertReport : inser report to db
 func (manager *Manager) InsertReport(report Report) (ID int, err error) {
-	query := "INSERT INTO " + ReportTable + " (type, status, data, time) VALUES ($1, $2, $3, $4) RETURNING id;"
+	query := "INSERT INTO " + ReportTable + " (shahash, type, status, data, time) VALUES ($1, $2, $3, $4, $5) RETURNING id;"
 	shaHash := fmt.Sprintf("%x", string(report.ShaHash[:]))
-	fmt.Printf("%s", shaHash)
 
-	err = manager.Database.QueryRow(query, shaHash, report.Status, report.Data, report.Time).Scan(&ID)
+	err = manager.Database.QueryRow(query, shaHash, report.Type, report.Status, report.Data, report.Time).Scan(&ID)
 	return
 }
 
@@ -220,7 +219,7 @@ func (manager *Manager) SelectReportByStatus(reportType, status string) (reports
 
 //CheckReportDuplicate : Check for report with the same hash
 func (manager *Manager) CheckReportDuplicate(ShaHash []byte) (exist bool, err error) {
-	query := "SELECT EXIST(SELECT id FROM " + ReportTable + " WHERE shahash=$1);"
+	query := "SELECT EXISTS(SELECT id FROM " + ReportTable + " WHERE shahash=$1);"
 	shaHash := fmt.Sprintf("%x", ShaHash)
 
 	row := manager.Database.QueryRow(query, shaHash)
@@ -363,6 +362,7 @@ func (manager *Manager) SelectKeywordByID(ID int) (keyword Keyword, err error) {
 
 //Init :  init checks & table creation
 func Init(conn *sql.DB) (err error) {
+	utils.InfoLogger.Println("initializing database")
 	tables := make(map[string](func(name string, conn *sql.DB) (err error)), 10)
 
 	tables[FragmentTable] = createFragmentTable
@@ -417,7 +417,7 @@ func createFragmentTable(tableName string, conn *sql.DB) (err error) {
 }
 
 func createReportTable(tableName string, conn *sql.DB) (err error) {
-	query := "CREATE TABLE " + tableName + " (id serial, shahash varchar PRIMARY KEY, status varchar, data bytea, time integer);"
+	query := "CREATE TABLE " + tableName + " (id serial, shahash varchar PRIMARY KEY, status varchar, type varchar, data bytea, time integer);"
 	_, err = conn.Exec(query)
 	return
 }

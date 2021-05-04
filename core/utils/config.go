@@ -21,14 +21,17 @@ type DBCredentialsSettings struct {
 }
 
 type githubSettings struct {
-	Tokens []string  `yaml:"tokens"`
-	Langs  Blacklist `yaml:"langs"`
+	Tokens      []string  `yaml:"tokens"`
+	Langs       Blacklist `yaml:"langs"`
+	RequestRate float64   `yaml:"request_rate"`
 }
 
 type leakGlobalsSettings struct {
 	Version    float32
 	Keywords   []string `yaml:"keywords"`
 	ContentDir string   `yaml:"content_dir"`
+	LogDir     string   `yaml:"log_dir"`
+	LogFile    string   `yaml:"log_file"`
 }
 
 type webAdminSettings struct {

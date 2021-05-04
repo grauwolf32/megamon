@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/megamon/core/leaks/models"
 	"github.com/megamon/core/utils"
@@ -81,7 +80,7 @@ type MiddlewareInterface interface {
 	Init() (err error)
 	Close()
 	GetDBManager() models.Manager
-	BuildRequests() (res chan Request, err error)
+	BuildRequests(res chan Request) (err error)
 	CheckResponse(resp Response, reqCount int) (res int)
 	ProcessResponse(resp []byte, RequesID int) (err error)
 }
@@ -95,7 +94,7 @@ type Interface interface {
 
 //RateLimiter : limits requests rate
 type RateLimiter interface {
-	Wait(ctx context.Context, resp *http.Response, t time.Time) interface{}
+	Wait(ctx context.Context, resp *http.Response) interface{}
 }
 
 func logErr(err error) {

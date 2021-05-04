@@ -2,18 +2,24 @@ package github
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
 
+	"github.com/megamon/core/utils"
 	"golang.org/x/time/rate"
 )
 
-//RateLimiter : rate limit request to github
-type RateLimiter struct {
-	RequestRate float64
-	Duration    time.Duration
-	Limiter     *rate.Limiter
+func logErr(err error) {
+	fmt.Println("[ERROR] " + err.Error())
+	utils.ErrorLogger.Println(err.Error())
+	return
+}
+
+func logInfo(info string) {
+	utils.InfoLogger.Println(info)
+	return
 }
 
 //Init : RateLimiter init function
@@ -22,7 +28,7 @@ func (rl *RateLimiter) Init() {
 }
 
 //Wait until desired rate
-func (rl *RateLimiter) Wait(ctx context.Context, resp *http.Response, t time.Time) interface{} {
+func (rl *RateLimiter) Wait(ctx context.Context, resp *http.Response) interface{} {
 	rlRemaining := resp.Header.Get("x-ratelimit-remaining")
 	rlReset := resp.Header.Get("x-ratelimit-reset")
 

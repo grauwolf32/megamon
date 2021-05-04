@@ -2,6 +2,7 @@ package stage
 
 import (
 	"context"
+	"fmt"
 	"io/ioutil"
 	"net"
 	"strconv"
@@ -14,38 +15,45 @@ import (
 //DoRequests : common part of leak search
 func DoRequests(ctx context.Context, stage MiddlewareInterface, reqQueue chan Request, rl RateLimiter, responses chan Response) {
 	reqCount := make(map[int]int)
-	var err error
 	for r := range reqQueue {
 
 	DOREQUEST:
 		for {
+			logInfo(fmt.Sprintf("request to %s; count: %d; id: %d", r.Req.URL.String(), reqCount[r.ID], r.ID))
+
 			httpResp, rErr := utils.DoRequest(r.Req)
 			reqCount[r.ID]++
 
 			if rErr != nil {
 				//If timeout, check for request count
-				if err, ok := err.(net.Error); ok && err.Timeout() {
+				if err, ok := rErr.(net.Error); ok && err.Timeout() {
+					reqCount[r.ID]++
 					if reqCount[r.ID] > MAXRETRIES {
 						break DOREQUEST
 					}
-					<-time.After(TIMEWAIT * time.Second)
+
+					logErr(err)
+					_ = rl.Wait(ctx, httpResp)
+					continue
 
 				} else {
-					logErr(err)
+					logErr(rErr)
 					break DOREQUEST
 				}
 			}
 
+			_ = rl.Wait(ctx, httpResp)
 			resp := Response{r.ID, httpResp}
 			check := stage.CheckResponse(resp, reqCount[r.ID])
 
 			switch check {
 			case OK:
 				responses <- resp
+				break DOREQUEST
 			case WAIT:
 				<-time.After(TIMEWAIT * time.Second)
 			case SKIP:
-				logInfo("Skipping " + r.Req.URL.String() + " after " + strconv.Itoa(reqCount[r.ID]) + " attempts")
+				logInfo("skipping " + r.Req.URL.String() + " after " + strconv.Itoa(reqCount[r.ID]) + " attempts")
 				break DOREQUEST
 			default:
 				if reqCount[r.ID] > MAXRETRIES {
@@ -59,9 +67,6 @@ func DoRequests(ctx context.Context, stage MiddlewareInterface, reqQueue chan Re
 				return
 			default:
 			}
-
-			_ = rl.Wait(ctx, resp.Resp, time.Now())
-
 		}
 	}
 }
@@ -69,6 +74,8 @@ func DoRequests(ctx context.Context, stage MiddlewareInterface, reqQueue chan Re
 //ProcessResponses : common part of leak search
 func ProcessResponses(ctx context.Context, stage MiddlewareInterface, respQueue chan Response) {
 	for resp := range respQueue {
+		logInfo(fmt.Sprintf("processing response from request: %d", resp.RequesID))
+
 		bodyReader, err := utils.GetBodyReader(resp.Resp)
 		if err != nil {
 			logErr(err)
@@ -98,16 +105,21 @@ func ProcessResponses(ctx context.Context, stage MiddlewareInterface, respQueue 
 
 //RunMiddlewareStage : Middleware processing function
 func RunMiddlewareStage(ctx context.Context, stage MiddlewareInterface, limiter RateLimiter, nRequestWorkers, nProcessWorkers int) (err error) {
-	reqQueue, err := stage.BuildRequests()
+	logInfo("building request queue")
+	reqQueue := make(chan Request, MAXCHANCAP)
 	respQueue := make(chan Response, MAXCHANCAP)
+
+	err = stage.BuildRequests(reqQueue)
+	if err != nil {
+		close(respQueue)
+		close(reqQueue)
+		return err
+	}
 
 	var wgRequests sync.WaitGroup
 	var wg sync.WaitGroup
 
-	if err != nil {
-		return
-	}
-
+	logInfo("initializing stage request workers")
 	for i := 0; i < nRequestWorkers; i++ {
 		wgRequests.Add(1)
 		go func() {
@@ -116,6 +128,7 @@ func RunMiddlewareStage(ctx context.Context, stage MiddlewareInterface, limiter 
 		}()
 	}
 
+	logInfo("initializing stage processing workers")
 	for i := 0; i < nProcessWorkers; i++ {
 		wg.Add(1)
 		go func() {
@@ -127,6 +140,7 @@ func RunMiddlewareStage(ctx context.Context, stage MiddlewareInterface, limiter 
 	wgRequests.Wait()
 	close(reqQueue)
 	wg.Wait()
+	close(respQueue)
 	return
 }
 
