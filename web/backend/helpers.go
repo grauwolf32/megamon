@@ -9,6 +9,7 @@ import (
 	"strconv"
 
 	"github.com/labstack/echo"
+	"github.com/megamon/core/leaks/fragment"
 	"github.com/megamon/core/leaks/models"
 	"github.com/megamon/core/leaks/stage"
 	"github.com/megamon/core/utils"
@@ -69,6 +70,17 @@ func getFragments(ctx echo.Context) (err error) {
 	manager := ctx.(Context).backend.DBManager
 	fragments, err := manager.SelectTextFragment("reject_id", rejectID, extensions...)
 
+	for i := range fragments {
+		alteredKeywords := make([][]int, 0, len(fragments[i].Keywords))
+		fragmentKeywords := fragments[i].Keywords
+		for _, kwIndices := range fragmentKeywords {
+			frag := fragment.Fragment{Offset: kwIndices[0], Length: kwIndices[1]}
+			frag.ConvertToRunes(fragments[i].Text)
+			alteredKeywords = append(alteredKeywords, []int{frag.Offset, frag.Offset + frag.Length})
+		}
+
+		fragments[i].Keywords = alteredKeywords
+	}
 	if err != nil {
 		return ctx.String(500, err.Error())
 	}
@@ -167,6 +179,8 @@ func markFragment(ctx echo.Context) (err error) {
 	frag := frags[0]
 	reportID := frag.ReportID
 
+	//fmt.Printf("%v %d %d %d\n", frag, fragID, reportID, rejectID)
+
 	err = manager.UpdateTextFragmentRejectID(frag.ID, rejectID)
 	if err != nil {
 		return ctx.String(500, err.Error())
@@ -179,9 +193,11 @@ func markFragment(ctx echo.Context) (err error) {
 		}
 
 		for _, f := range frags {
-			err = manager.UpdateTextFragmentRejectID(f.ID, models.RULEAUTOREMOVED)
-			if err != nil {
-				return ctx.String(500, err.Error())
+			if f.ID != fragID && f.RejectID != models.RULEMANUAL {
+				err = manager.UpdateTextFragmentRejectID(f.ID, models.RULEAUTOREMOVED)
+				if err != nil {
+					return ctx.String(500, err.Error())
+				}
 			}
 		}
 

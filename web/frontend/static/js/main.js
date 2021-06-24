@@ -2,19 +2,19 @@ HighlightedReport = Vue.component('h-report', {
     props: ["fragment"],
     render(new_el) {
         var text = this.fragment.text
-        var ind  = this.fragment.ids
+        var ind  = this.fragment.keywords
         var rootChilds = []
 
         rootChilds.push(new_el("span", {}, text.substring(0, ind[0])))
-        for(var i=0 ;i < ind.length; i += 2)
+        for(var i=0 ;i < ind.length; i++)
         {
-            rootChilds.push(new_el("span", {class : "highlight"}, text.substring(ind[i], ind[i+1])))
-            if(i+2 < ind.length){
-                rootChilds.push(new_el("span", {},  text.substring(ind[i+1], ind[i+2])))
+            rootChilds.push(new_el("span", {class : "highlight"}, text.substring(ind[i][0], ind[i][1])))
+            if(i+1 < ind.length){
+                rootChilds.push(new_el("span", {},  text.substring(ind[i][1], ind[i+1][0])))
             }
         }
 
-        rootChilds.push(new_el("span", {},  text.substring(ind[ind.length - 1], text.length)))
+        rootChilds.push(new_el("span", {},  text.substring(ind[ind.length - 1][1], text.length)))
         return divElement = new_el("div", {class:"text-wrap"}, rootChilds) 
     },
   })
@@ -35,7 +35,11 @@ HeadNavigation = Vue.component('h-nav', {
                 {
                     name:"Settings",
                     path:"/settings"
-                }]
+                },
+                {
+                    name: "Controls",
+                    path: "/controls"
+                },]
             }
           }
       },
@@ -64,7 +68,7 @@ ModalWindow = Vue.component('v-modal', {
 
           <div class="modal-header">
             <h3>Fragment Info</h3>
-            <button type="button" class="btn-close btn" aria-label="Close" @click="$emit('close')">X</button>
+            <button type="button" class="btn-close btn" aria-label="Close" @click="$emit('close')">x</button>
           </div>
 
           <div class="modal-body">
@@ -77,8 +81,7 @@ ModalWindow = Vue.component('v-modal', {
         </div>
       </div>
     </div>
-  </transition>
-            `
+  </transition>         `
 })
 
 RControl = Vue.component('r-control',{
@@ -173,6 +176,8 @@ FragmentInfo = Vue.component('f-info', {
     </div>
     `
 })
+
+
 Settings = Vue.component('settings', {
     data : function(){
         return {
@@ -189,7 +194,7 @@ Settings = Vue.component('settings', {
     },
     methods:{
         getInfo: function(){
-            var requestURI = '/api/info/settings'
+            var requestURI = '/leaks/api/settings'
             axios.get(requestURI)
                 .then(response => {
                     this.info = response.data
@@ -200,7 +205,7 @@ Settings = Vue.component('settings', {
                 })
         },
         getRules: function(){
-            var requestURI = '/api/regexp/get'
+            var requestURI = '/leaks/api/regexp'
             var ruleNames = []
             axios.get(requestURI)
                 .then(response => {
@@ -253,12 +258,12 @@ Settings = Vue.component('settings', {
         },
         update: function(){
             console.log(this.info)
-            var requestURI = "/api/update/settings"
+            var requestURI = "/leaks/api/settings"
             axios.post(requestURI, this.info)
         },
 
         createRule: function(selected){
-            var requestURI = "/api/regexp/add"
+            var requestURI = "/leaks/api/regexp"
             if(this.ruleNames.indexOf(selected) != -1){
                 return
             }
@@ -274,8 +279,8 @@ Settings = Vue.component('settings', {
         removeRule: function(selected){
             for(rule in this.rules){
                 if(selected == rule.re){
-                    var requestURI = "/api/regexp/remove&ruleid="+rule.id
-                    axios.post(requestURI, {}).then(response => {
+                    var requestURI = "/leaks/api/regexp/remove/"+rule.id
+                    axios.get(requestURI, {}).then(response => {
                         if (response.status == 200){
                             elId = this.ruleNames.indexOf(selected)
                             
@@ -313,12 +318,13 @@ Fragments = Vue.component('r-fragments', {
                 show : false
             },
             reportStatuses:[
-                {name: "New",    value: "new"},
-                {name: "Closed", value: "closed"},
-                {name: "Verified", value: "verified"}
+                {name: "New",    value: "0"},
+                {name: "Closed", value: "1"},
+                {name: "Verified", value: "2"},
+                {name: "Autoremoved", value: "3"},
             ],
             availableLimits:[10, 20, 50, 100],
-            reportStatus: "new",
+            reportStatus: "0",
             limit: 10
         } 
     },
@@ -327,13 +333,22 @@ Fragments = Vue.component('r-fragments', {
     methods: {
             updatePage: function () {
             offset = this.pagination.currentPage*this.limit
-            var requestURI = '/api/get/' + this.pagetype + "/" +  this.reportStatus + '?limit=' + this.limit + '&offset=' + offset
-
+           
+            //Get fragments
+            var requestURI = '/leaks/api/report/frags/' + this.pagetype + "/" +  this.reportStatus + '?limit=' + this.limit + '&offset=' + offset
             axios.get(requestURI)
                 .then(response => {
-                    this.fragments = response.data["fragments"]
-                    var nResults = response.data["total_count"]
-                    
+                    this.fragments = response.data
+                })
+                .catch(error => {
+                    console.log(error)
+                })
+
+            //Get fragments count
+            requestURI = '/leaks/api/report/count/' + this.pagetype + "/" +  this.reportStatus + '?limit=' + this.limit + '&offset=' + offset
+            axios.get(requestURI)
+                .then(response => {
+                    var nResults = response.data["count"]
                     this.updatePagination(nResults)
                 })
                 .catch(error => {
@@ -349,7 +364,7 @@ Fragments = Vue.component('r-fragments', {
                     }
                 }
                 
-                var requestURI = '/api/info/fragment?id=' + fragmentId
+                var requestURI = '/leaks/api/report/info/' + fragmentId
                 
                 axios.get(requestURI)
                     .then(response => {
@@ -365,7 +380,7 @@ Fragments = Vue.component('r-fragments', {
         markResult: function(data){
             var fragment_id = data[1]
             var status = data[0]
-            var requestURI = "/api/mark/" + this.pagetype +"/" + fragment_id + "/"
+            var requestURI = "/leaks/api/report/mark/"+ fragment_id + "/"+data[0]
 
             console.log(data)
             if(status == 0){
@@ -386,11 +401,8 @@ Fragments = Vue.component('r-fragments', {
             console.log("fid: " + fid +" rid: "+rid)
 
             if(status == 1){
-                requestURI += "false"
-                console.log(requestURI)
                 axios.get(requestURI).then(respons=>{
                     if(respons.status == 200 && fid != -1){
-                        console.log("Yeah")
                         this.fragments.splice(fid, 1)
                         if(this.fragments.length == 0){
                             this.updatePage()
@@ -399,8 +411,6 @@ Fragments = Vue.component('r-fragments', {
                     }
                 })
             } else if(status == 2 && rid != -1){
-                console.log(requestURI)
-                requestURI += "valid"
                 axios.get(requestURI).then(
                     response => {
                         if(response.status == 200){
@@ -474,7 +484,6 @@ Fragments = Vue.component('r-fragments', {
     },
     watch: {
         $route : function(){
-            console.log("Changed")
             this.updatePage()
         }
     },
@@ -490,7 +499,8 @@ const router = new VueRouter({
         {path: "/", component:Fragments, props:{pagetype:"github"}},
         {path: "/github", component:Fragments, props:{pagetype:"github"}},
         {path: "/gist",  component:Fragments, props:{pagetype:"gist"}},
-        {path: "/settings",  component:Settings }
+        {path: "/settings",  component:Settings },
+        {path: "/controls", component:Settings },
     ],
     mode: "history"
 })

@@ -51,6 +51,7 @@ table.fixed { table-layout:fixed; }
                 <input type="password" class="form-control" aria-label="Password">
             </div>
         </div>
+
         </td><td>
             <div class="container">
                 <h3> Github Settings </h3>
@@ -90,7 +91,9 @@ table.fixed { table-layout:fixed; }
 </script>
 
 <script type="text/x-template" id="fragments-template">
-  <div><br/><br/>
+  <div>
+    <br/>
+    <br/>
     <v-modal v-if="modal.show" v-bind:content="modal.content" v-on:close="modal.show=false"></v-modal>
     <table class="table table-bordered fixed">
     <thead>
@@ -131,21 +134,26 @@ table.fixed { table-layout:fixed; }
 </script>
 
 <script type="text/x-template" id="pnav-template">
-  <nav aria-label="Page navigation example">
-    <ul class="pagination justify-content-center">
-      <li class="page-item"><a class="page-link" v-on:click="$emit('goTo', 0)">&lt&lt</a></li>
-      <li class="page-item"><a class="page-link" v-on:click="$emit('skipLeft')">&lt</a></li>
+  <div>
+    <nav aria-label="Page navigation example">
+      <ul class="pagination justify-content-center">
+        <li class="page-item"><a class="page-link" v-on:click="$emit('goTo', 0)">&lt&lt</a></li>
+        <li class="page-item"><a class="page-link" v-on:click="$emit('skipLeft')">&lt</a></li>
       
-      <li v-for="page in pagination.pages"  v-bind:class="[page.id == pagination.currentPage ? 'page-item active' : 'page-item']">
-        <a  v-on:click="$emit('goTo', page.id)" class="page-link">
+        <li v-for="page in pagination.pages"  v-bind:class="[page.id == pagination.currentPage ? 'page-item active' : 'page-item']">
+          <a  v-on:click="$emit('goTo', page.id)" class="page-link">
                             {{page.id}}
-        </a>
-      </li> 
-      <li class="page-item"><a class="page-link" v-on:click="$emit('skipRight')">&gt</a></li>
-      <li class="page-item"><a class="page-link" v-on:click="$emit('goTo', pagination.maxPage)">&gt&gt</a></li>
-    </ul>
-  </nav>
+          </a>
+        </li> 
+        <li class="page-item"><a class="page-link" v-on:click="$emit('skipRight')">&gt</a></li>
+        <li class="page-item"><a class="page-link" v-on:click="$emit('goTo', pagination.maxPage)">&gt&gt</a></li>
+      </ul>
+    </nav>
+  </div>
 </script>
+
+
+
 </head>
 
 <body>
