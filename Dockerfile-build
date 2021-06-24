@@ -1,0 +1,6 @@
+FROM golang:latest
+LABEL  author="grauwolf32@mail.ru"
+RUN mkdir /build
+COPY . /build
+WORKDIR /build
+RUN go build -o megamon

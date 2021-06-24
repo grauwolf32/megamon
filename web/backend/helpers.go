@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"strconv"
 
-	"github.com/labstack/echo"
+	"github.com/labstack/echo/v4"
 	"github.com/megamon/core/leaks/fragment"
 	"github.com/megamon/core/leaks/models"
 	"github.com/megamon/core/leaks/stage"

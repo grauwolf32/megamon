@@ -2,8 +2,16 @@ version: "3"
 
 services:
   postgres:
+    environment:
+      - POSTGRES_USER=monitoring
+      - POSTGRES_PASSWORD=${DB_PASSWD}
+      - APP_DB_USER=monitoring
+      - APP_DB_PASS=${DB_PASSWD}
+      - APP_DB_NAME=monitoring
+
     volumes:
       - ./files/db:/var/lib/postgresql/data
+
   megamon:
     build:
       dockerfile: ./Dockerfile
@@ -11,7 +19,5 @@ services:
       - "1234:1234"
     volumes:
       - ./files:/app/files
-
-
-
-
+    links:
+      - "db:database"
