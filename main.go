@@ -44,7 +44,14 @@ func main() {
 		}()
 	*/
 
+	githubTaskQueue := make(chan int)
+	gistTaskQueue := make(chan int)
+
+	params := make(map[string](chan int))
+	params["github"] = githubTaskQueue
+	params["gist"] = gistTaskQueue
+
 	var b backend.Backend
-	b.Start()
+	b.Start(params)
 	return
 }

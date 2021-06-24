@@ -5,10 +5,15 @@ import (
 )
 
 func TestInitConfig(t *testing.T) {
-	InitConfig("../../config/config.yaml")
+	err := InitConfig("../../config/config.yaml")
+
+	if err != nil {
+		t.Errorf(err.Error())
+	}
 
 	if Settings.LeakGlobals.Version == 0.0 {
 		t.Errorf("Could not parse config file")
 	}
+
 	return
 }

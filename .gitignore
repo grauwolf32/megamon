@@ -1,3 +1,4 @@
 /config/*.yaml
 /logs/*
 /files/*
+.DS_Store

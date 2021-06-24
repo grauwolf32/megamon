@@ -16,7 +16,7 @@ func setup() {
 	utils.InitConfig("../../../config/config.yaml")
 	creds := utils.Settings.DBCredentials
 
-	conn, err := Connect(creds.Name, creds.Password, creds.Database)
+	conn, err := Connect(creds.Name, creds.Password, creds.DBHostName, creds.Database)
 	defer conn.Close()
 
 	FragmentTable = "fragment_test"
@@ -37,7 +37,7 @@ func setup() {
 
 func clean() {
 	creds := utils.Settings.DBCredentials
-	conn, err := Connect(creds.Name, creds.Password, creds.Database)
+	conn, err := Connect(creds.Name, creds.Password, creds.DBHostName, creds.Database)
 	defer conn.Close()
 
 	tables := []string{FragmentTable, ReportTable, RuleTable, KeywordsTable}
@@ -59,7 +59,7 @@ func TestMain(m *testing.M) {
 
 func TestConnect(t *testing.T) {
 	creds := utils.Settings.DBCredentials
-	conn, err := Connect(creds.Name, creds.Password, creds.Database)
+	conn, err := Connect(creds.Name, creds.Password, creds.DBHostName, creds.Database)
 
 	if err != nil {
 		t.Errorf("%s", err.Error())

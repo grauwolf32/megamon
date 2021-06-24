@@ -106,6 +106,10 @@ func InitConfig(confFile string) (err error) {
 	}
 
 	err = yaml.Unmarshal(confData, &Settings)
+	if err != nil {
+		return
+	}
+
 	return
 }
 

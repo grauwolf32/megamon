@@ -4,9 +4,9 @@ services:
   postgres:
     environment:
       - POSTGRES_USER=monitoring
-      - POSTGRES_PASSWORD=${DB_PASSWD}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
       - APP_DB_USER=monitoring
-      - APP_DB_PASS=${DB_PASSWD}
+      - APP_DB_PASS=${DB_PASSWORD}
       - APP_DB_NAME=monitoring
 
     volumes:
@@ -15,9 +15,13 @@ services:
   megamon:
     build:
       dockerfile: ./Dockerfile
+
     ports:
       - "1234:1234"
+
     volumes:
       - ./files:/app/files
+      - ./config:/app/config
+      
     links:
       - "db:database"

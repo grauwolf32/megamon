@@ -15,9 +15,10 @@ type Blacklist struct {
 
 //DBCredentialsSettings : database credentials
 type DBCredentialsSettings struct {
-	Database string `yaml:"database" json:"database"`
-	Name     string `yaml:"name" json:"name"`
-	Password string `yaml:"password" json:"password"`
+	Database   string `yaml:"database" json:"database"`
+	Name       string `yaml:"name" json:"name"`
+	Password   string `yaml:"password" json:"password"`
+	DBHostName string `yaml:"db_hostname"`
 }
 
 type githubSettings struct {

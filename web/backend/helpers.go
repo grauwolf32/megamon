@@ -23,6 +23,7 @@ func stub(ctx echo.Context) (err error) {
 //Context : context with db and other stuff
 type Context struct {
 	backend *Backend
+	queues  map[string]chan int
 	echo.Context
 }
 
@@ -178,8 +179,6 @@ func markFragment(ctx echo.Context) (err error) {
 
 	frag := frags[0]
 	reportID := frag.ReportID
-
-	//fmt.Printf("%v %d %d %d\n", frag, fragID, reportID, rejectID)
 
 	err = manager.UpdateTextFragmentRejectID(frag.ID, rejectID)
 	if err != nil {
@@ -354,4 +353,54 @@ func addKeyword(ctx echo.Context) (err error) {
 func validate(text string) (bool, error) {
 	alphabetic, err := regexp.Compile("[a-zA-Z]+")
 	return alphabetic.Match([]byte(text)), err
+}
+
+func taskManager(ctx echo.Context) (err error) {
+	task := ctx.Param("task")
+	state := ctx.Param("state")
+
+	var valid bool
+
+	valid, err = validate(task)
+	if err != nil {
+		return ctx.String(500, err.Error())
+	}
+	if !valid {
+		return ctx.String(400, "Invalid task fromat")
+	}
+
+	valid, err = validate(state)
+	if err != nil {
+		return ctx.String(500, err.Error())
+	}
+	if !valid {
+		return ctx.String(400, "Invalid state fromat")
+	}
+
+	if _, ok := ctx.(Context).queues[task]; !ok {
+		return ctx.String(400, "Task not found!")
+	}
+
+	taskQueue := ctx.(Context).queues[task]
+
+	switch state {
+	case "info":
+		select {
+		case taskQueue <- 2:
+			return ctx.String(200, "not running")
+		default:
+			return ctx.String(200, "running")
+		}
+	case "start":
+		select {
+		case taskQueue <- 1:
+			return ctx.String(200, "done")
+		default:
+			return ctx.String(405, "already running")
+		}
+	case "end":
+		return ctx.String(200, "OK")
+	}
+
+	return ctx.String(200, "OK")
 }

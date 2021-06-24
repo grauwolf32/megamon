@@ -21,13 +21,16 @@ type Backend struct {
 	DBManager models.Manager
 }
 
+//Params : parameters to the backend
+type Params map[string](chan int)
+
 //Render : render template function
 func (t *Template) Render(w io.Writer, name string, data interface{}, c echo.Context) error {
 	return t.templates.ExecuteTemplate(w, name, data)
 }
 
 //Start : initialize backend
-func (b *Backend) Start() {
+func (b *Backend) Start(p Params) {
 	e := echo.New()
 	t := &Template{
 		templates: template.Must(template.ParseGlob("web/frontend/templates/*")),
@@ -39,10 +42,10 @@ func (b *Backend) Start() {
 	e.Renderer = t
 	b.DBManager.Init()
 
-	//Pass database to context
+	//Pass database & job queues to context
 	e.Use(func(h echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
-			cc := Context{b, c}
+			cc := Context{b, p, c}
 			return h(cc)
 		}
 	})
@@ -71,10 +74,12 @@ func (b *Backend) Start() {
 	e.GET("/leaks/api/keywords/remove/:id", delKeyword, loginRequired)
 	e.POST("/leaks/api/keywords", addKeyword, loginRequired)
 
+	e.GET("/leaks/api/task/:task/:state", taskManager, loginRequired)
+
 	e.GET("/login", loginPage)
 	e.POST("/login", handleLogin)
 
-	e.HideBanner = true
+	e.HideBanner = false
 	e.Debug = false
 
 	//e.Logger.Fatal(e.StartAutoTLS(":1234"))

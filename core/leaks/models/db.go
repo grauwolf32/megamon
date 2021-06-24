@@ -32,7 +32,7 @@ var KeywordsTable = "keywords"
 //Init : Manager constructor
 func (manager *Manager) Init() (err error) {
 	creds := utils.Settings.DBCredentials
-	conn, err := Connect(creds.Name, creds.Password, creds.Database)
+	conn, err := Connect(creds.Name, creds.Password, creds.DBHostName, creds.Database)
 	if err != nil {
 		return
 	}
@@ -369,8 +369,8 @@ func Init(conn *sql.DB) (err error) {
 }
 
 // Connect to database
-func Connect(name, password, database string) (db *sql.DB, err error) {
-	ConnectURI := fmt.Sprintf("postgres://%s:%s@localhost/%s?sslmode=disable", name, password, database)
+func Connect(name, password, hostname, database string) (db *sql.DB, err error) {
+	ConnectURI := fmt.Sprintf("postgres://%s:%s@%s/%s?sslmode=disable", name, password, hostname, database)
 	db, err = sql.Open("postgres", ConnectURI)
 	return
 }
@@ -380,7 +380,6 @@ func CheckExists(tableName string, conn *sql.DB) (exist bool, err error) {
 	query := "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema=$2 AND table_name=$1);"
 	schema := "public"
 	row := conn.QueryRow(query, tableName, schema)
-
 	err = row.Scan(&exist)
 	return
 }
