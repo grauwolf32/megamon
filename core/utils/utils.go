@@ -110,6 +110,9 @@ func InitConfig(confFile string) (err error) {
 		return
 	}
 
+	Settings.LeakGlobals.Keywords = make(map[string]Keyword, 20)
+	Settings.LeakGlobals.Rules = make(map[string]RejectRule, 20)
+
 	return
 }
 

@@ -1,5 +1,22 @@
 package utils
 
+import "regexp"
+
+//RejectRule : description of reject rule
+type RejectRule struct {
+	ID   int    `json:"id"`
+	Rule string `json:"rule"`
+	Name string `json:"name"`
+	Expr *regexp.Regexp
+}
+
+//Keyword : auxilary data type
+type Keyword struct {
+	ID    int    `json:"id"`
+	Value string `json:"value"`
+	Type  int    `json:"type"`
+}
+
 //GlobalSettings : settings for the whole project
 type GlobalSettings struct {
 	Github           githubSettings        `yaml:"github" json:"github"`
@@ -28,11 +45,13 @@ type githubSettings struct {
 }
 
 type leakGlobalsSettings struct {
-	Version    float32
-	Keywords   []string `yaml:"keywords" json:"keywords"`
-	ContentDir string   `yaml:"content_dir" json:"content_dir"`
-	LogDir     string   `yaml:"log_dir" json:"log_dir"`
-	LogFile    string   `yaml:"log_file" json:"log_file"`
+	Version  float32
+	Keywords map[string]Keyword    `json:"keywords"`
+	Rules    map[string]RejectRule `json:"rules"`
+
+	ContentDir string `yaml:"content_dir" json:"content_dir"`
+	LogDir     string `yaml:"log_dir" json:"log_dir"`
+	LogFile    string `yaml:"log_file" json:"log_file"`
 }
 
 type webAdminSettings struct {

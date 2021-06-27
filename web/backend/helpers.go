@@ -20,10 +20,13 @@ func stub(ctx echo.Context) (err error) {
 	return
 }
 
+//Params : parameters to the backend
+type Params map[string]*utils.WorkerParams
+
 //Context : context with db and other stuff
 type Context struct {
 	backend *Backend
-	queues  map[string]chan int
+	queues  Params
 	echo.Context
 }
 
@@ -214,10 +217,29 @@ func markFragment(ctx echo.Context) (err error) {
 }
 
 func getSettings(ctx echo.Context) (err error) {
+	keywords, err := ctx.(Context).backend.DBManager.SelectAllKeywords()
+	if err != nil {
+		return ctx.String(500, err.Error())
+	}
+
+	for _, keyword := range keywords {
+		utils.Settings.LeakGlobals.Keywords[keyword.Value] = utils.Keyword(keyword)
+	}
+
+	regexps, err := ctx.(Context).backend.DBManager.SelectAllRules()
+	if err != nil {
+		return ctx.String(500, err.Error())
+	}
+
+	for _, rejectRule := range regexps {
+		utils.Settings.LeakGlobals.Rules[rejectRule.Rule] = utils.RejectRule(rejectRule)
+	}
+
 	settings, err := json.Marshal(utils.Settings)
 	if err != nil {
 		return ctx.String(500, err.Error())
 	}
+
 	return ctx.JSONBlob(200, settings)
 }
 
@@ -240,6 +262,31 @@ func updateSettings(ctx echo.Context) (err error) {
 	utils.Settings.Github.Langs = updated.Github.Langs
 	utils.Settings.Github.Tokens = updated.Github.Tokens
 
+	for keyword := range utils.Settings.LeakGlobals.Keywords {
+		if _, ok := updated.LeakGlobals.Keywords[keyword]; !ok {
+			kw := utils.Settings.LeakGlobals.Keywords[keyword]
+			err = ctx.(Context).backend.DBManager.DeleteKeyword(kw.ID)
+			if err != nil {
+				return ctx.String(500, err.Error())
+			}
+
+			delete(utils.Settings.LeakGlobals.Keywords, keyword)
+		}
+	}
+	for keyword := range updated.LeakGlobals.Keywords {
+		if _, ok := utils.Settings.LeakGlobals.Keywords[keyword]; !ok {
+			kwType := updated.LeakGlobals.Keywords[keyword].Type
+			keywordID, err := ctx.(Context).backend.DBManager.InsertKeyword(keyword, kwType)
+			if err != nil {
+				return ctx.String(500, err.Error())
+			}
+			kw := utils.Settings.LeakGlobals.Keywords[keyword]
+			kw.ID = keywordID
+
+			utils.Settings.LeakGlobals.Keywords[keyword] = utils.Keyword(kw)
+		}
+	}
+
 	yamlSettings, err := yaml.Marshal(utils.Settings)
 
 	if err != nil {
@@ -248,106 +295,6 @@ func updateSettings(ctx echo.Context) (err error) {
 
 	err = ioutil.WriteFile("../../config/config.yaml", yamlSettings, 0644)
 	return ctx.String(200, "OK")
-}
-
-func getRegexps(ctx echo.Context) (err error) {
-	if err != nil {
-		return ctx.String(500, err.Error())
-	}
-
-	manager := ctx.(Context).backend.DBManager
-	rules, err := manager.SelectAllRules()
-
-	if err != nil {
-		return ctx.String(500, err.Error())
-	}
-
-	jsonRules, err := json.Marshal(rules)
-	if err != nil {
-		return ctx.String(500, err.Error())
-	}
-
-	return ctx.JSONBlob(200, jsonRules)
-}
-
-func delRegexp(ctx echo.Context) (err error) {
-	ID, err := strconv.Atoi(ctx.Param("id"))
-	if err != nil {
-		return ctx.String(400, err.Error())
-	}
-	manager := ctx.(Context).backend.DBManager
-
-	err = manager.DeleteRuleByID(ID)
-	if err != nil {
-		return ctx.String(500, err.Error())
-	}
-
-	return ctx.String(200, "OK")
-}
-
-func addRegexp(ctx echo.Context) (err error) {
-	var rule models.RejectRule
-	err = ctx.Bind(&rule)
-	if err != nil {
-		return ctx.String(400, err.Error())
-	}
-
-	rule.Name = "regexp"
-	manager := ctx.(Context).backend.DBManager
-	ID, err := manager.InsertRule(rule)
-	rule.ID = ID
-
-	ruleJSON, err := json.Marshal(rule)
-	if err != nil {
-		return ctx.String(500, err.Error())
-	}
-
-	return ctx.JSONBlob(200, ruleJSON)
-}
-
-func getKeywords(ctx echo.Context) (err error) {
-	manager := ctx.(Context).backend.DBManager
-	keywords, err := manager.SelectAllKeywords()
-	if err != nil {
-		return ctx.String(500, err.Error())
-	}
-
-	keywordsJSON, err := json.Marshal(keywords)
-	if err != nil {
-		return ctx.String(500, err.Error())
-	}
-
-	return ctx.JSONBlob(200, keywordsJSON)
-}
-
-func delKeyword(ctx echo.Context) (err error) {
-	ID, err := strconv.Atoi(ctx.Param("id"))
-	if err != nil {
-		return ctx.String(400, err.Error())
-	}
-
-	manager := ctx.(Context).backend.DBManager
-	err = manager.DeleteKeyword(ID)
-	if err != nil {
-		return ctx.String(500, err.Error())
-	}
-
-	return ctx.String(200, "OK")
-}
-
-func addKeyword(ctx echo.Context) (err error) {
-	var keyword models.Keyword
-	err = ctx.Bind(&keyword)
-	if err != nil {
-		return ctx.String(500, err.Error())
-	}
-
-	manager := ctx.(Context).backend.DBManager
-	ID, err := manager.InsertKeyword(keyword.Value, keyword.Type)
-	keyword.ID = ID
-
-	keywordJSON, err := json.Marshal(keyword)
-	return ctx.JSONBlob(200, keywordJSON)
 }
 
 func validate(text string) (bool, error) {
@@ -381,26 +328,30 @@ func taskManager(ctx echo.Context) (err error) {
 		return ctx.String(400, "Task not found!")
 	}
 
-	taskQueue := ctx.(Context).queues[task]
+	wp := ctx.(Context).queues[task]
 
 	switch state {
 	case "info":
-		select {
-		case taskQueue <- 2:
-			return ctx.String(200, "not running")
-		default:
-			return ctx.String(200, "running")
-		}
+		return ctx.String(200, (*wp).Status)
+
 	case "start":
-		select {
-		case taskQueue <- 1:
-			return ctx.String(200, "done")
-		default:
-			return ctx.String(405, "already running")
-		}
-	case "end":
+		utils.RunTask(wp)
 		return ctx.String(200, "OK")
+
+	case "end":
+		utils.EndTask(wp)
+		return ctx.String(200, "OK")
+
 	}
 
-	return ctx.String(200, "OK")
+	return ctx.String(400, "Unknown state!")
+}
+
+func tasksAvailable(ctx echo.Context) (err error) {
+	var tasks []string
+	for task := range ctx.(Context).queues {
+		tasks = append(tasks, task)
+	}
+
+	return ctx.JSON(200, tasks)
 }

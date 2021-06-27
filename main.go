@@ -2,12 +2,40 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
+	"runtime"
 
+	"github.com/megamon/core/leaks/github"
 	"github.com/megamon/core/leaks/models"
 	"github.com/megamon/core/utils"
 	"github.com/megamon/web/backend"
 )
+
+func runWorker(taskQueue chan int, task func(ctx context.Context) error) {
+	ctx := context.Background()
+	var taskID int
+	var err error
+
+	for {
+		select {
+		case taskID = <-taskQueue:
+			switch taskID {
+			case 1:
+				fmt.Printf("Got %d\n", taskID)
+				taskQueue <- 2
+				err = task(ctx)
+				if err != nil {
+					utils.ErrorLogger.Println(err.Error())
+				}
+			default:
+				fmt.Printf("Got %d\n", taskID)
+			}
+		default:
+			runtime.Gosched()
+		}
+	}
+}
 
 func main() {
 	_ = context.Background()
@@ -35,21 +63,8 @@ func main() {
 	defer manager.Close()
 	models.Init(manager.Database)
 
-	/*
-		go func() {
-			err = github.RunGitSearch(ctx)
-			if err != nil {
-				utils.ErrorLogger.Fatal(err.Error())
-			}
-		}()
-	*/
-
-	githubTaskQueue := make(chan int)
-	gistTaskQueue := make(chan int)
-
-	params := make(map[string](chan int))
-	params["github"] = githubTaskQueue
-	params["gist"] = gistTaskQueue
+	params := make(map[string](*utils.WorkerParams))
+	params["github"] = &utils.WorkerParams{Task: github.RunGitSearch, Status: utils.TaskNotRunning}
 
 	var b backend.Backend
 	b.Start(params)

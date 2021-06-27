@@ -123,7 +123,7 @@ func (s *FetchStage) ProcessResponse(resp []byte, RequestID int) (err error) {
 	}
 
 	filePrefix := utils.Settings.LeakGlobals.ContentDir
-	filename := fmt.Sprintf("%s%x", filePrefix, s.ReportHashes[RequestID])
+	filename := fmt.Sprintf("%s%s", filePrefix, s.ReportHashes[RequestID])
 
 	err = ioutil.WriteFile(filename, decoded, 0644)
 	if err != nil {
@@ -165,7 +165,7 @@ func (s *FetchStage) GetTextsToProcess(textQueue chan stage.ReportText) (err err
 
 //ProcessTextFragment : stage interface realization
 func (s *FetchStage) ProcessTextFragment(fragment models.TextFragment) (err error) {
-	logInfo(fmt.Sprintf("processing fragment %x", fragment.ShaHash[:4]))
+	logInfo(fmt.Sprintf("processing fragment %s", fragment.ShaHash[:4]))
 	exist, err := s.Manager.CheckTextFragmentDuplicate(fragment.ShaHash)
 	if err != nil {
 		return

@@ -26,6 +26,7 @@ func RunGitSearch(ctx context.Context) (err error) {
 	var fetchStage FetchStage
 	fetchStage.Init()
 	logInfo("fetch stage started")
+	
 	err = stage.RunStage(ctx, &fetchStage, &rl, 1, 1, 2)
 	fetchStage.Close()
 

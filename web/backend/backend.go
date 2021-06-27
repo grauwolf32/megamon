@@ -21,9 +21,6 @@ type Backend struct {
 	DBManager models.Manager
 }
 
-//Params : parameters to the backend
-type Params map[string](chan int)
-
 //Render : render template function
 func (t *Template) Render(w io.Writer, name string, data interface{}, c echo.Context) error {
 	return t.templates.ExecuteTemplate(w, name, data)
@@ -53,10 +50,12 @@ func (b *Backend) Start(p Params) {
 	e.File("/", "web/frontend/index.html", loginRequired)
 	e.Static("/static", "web/frontend/static/")
 
-	e.File("/leaks/controls", "web/frontend/index.html", loginRequired)
-	e.File("/leaks/settings", "web/frontend/index.html", loginRequired)
-	e.File("/leaks/github", "web/frontend/index.html", loginRequired)
-	e.File("/leaks/gist", "web/frontend/index.html", loginRequired)
+	/*
+		e.File("/leaks/controls", "web/frontend/index.html", loginRequired)
+		e.File("/leaks/settings", "web/frontend/index.html", loginRequired)
+		e.File("/leaks/github", "web/frontend/index.html", loginRequired)
+		e.File("/leaks/gist", "web/frontend/index.html", loginRequired)
+	*/
 
 	e.GET("/leaks/api/report/frags/:datatype/:status", getFragments, loginRequired)
 	e.GET("/leaks/api/report/count/:datatype/:status", getFragmentCount, loginRequired)
@@ -66,18 +65,13 @@ func (b *Backend) Start(p Params) {
 	e.GET("/leaks/api/settings", getSettings, loginRequired)
 	e.POST("/leaks/api/settings", updateSettings, loginRequired)
 
-	e.GET("/leaks/api/regexp", getRegexps, loginRequired)
-	e.GET("/leaks/api/regexp/remove/:id", delRegexp, loginRequired)
-	e.POST("/leaks/api/regexp", addRegexp, loginRequired)
-
-	e.GET("/leaks/api/keywords", getKeywords, loginRequired)
-	e.GET("/leaks/api/keywords/remove/:id", delKeyword, loginRequired)
-	e.POST("/leaks/api/keywords", addKeyword, loginRequired)
-
 	e.GET("/leaks/api/task/:task/:state", taskManager, loginRequired)
+	e.GET("/leaks/api/task/available", tasksAvailable, loginRequired)
 
 	e.GET("/login", loginPage)
 	e.POST("/login", handleLogin)
+
+	e.File("/*", "web/frontend/index.html", loginRequired)
 
 	e.HideBanner = false
 	e.Debug = false

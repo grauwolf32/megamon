@@ -44,13 +44,13 @@ HeadNavigation = Vue.component('h-nav', {
           }
       },
       template:  `<nav class="navbar navbar-expand-md navbar-dark fixed-top bg-dark">
-                 <a class="navbar-brand" href="#">{{navigation.name}}</a>
-                 <div class="collapse navbar-collapse" id="navbarCollapse">
-                 <ul class="navbar-nav mr-auto">
-                      <li v-for="page in navigation.pages" v-bind:class="[page.path == $route.path ? 'nav-item active': 'nav-item']">
-                        <router-link class="nav-link" v-bind:to="page.path">{{page.name}}</router-link>
-                      </li>
-                 </ul></div></nav>`
+                  <a class="navbar-brand" href="#">{{navigation.name}}</a>
+                  <div class="collapse navbar-collapse" id="navbarCollapse">
+                  <ul class="navbar-nav mr-auto">
+                     <li v-for="page in navigation.pages" v-bind:class="[page.path == $route.path ? 'nav-item active': 'nav-item']">
+                           <router-link class="nav-link" v-bind:to="page.path">{{page.name}}</router-link>
+                     </li>
+                  </ul></div></nav>`
 })
 
 Pagination = Vue.component('p-nav', {
@@ -117,6 +117,7 @@ VItems = Vue.component('v-items',{
         },
         copyval: function(){
             this.copy = this.selection[0]
+            this.$emit("select", {id: this.vitem.id, selected:this.copy})
         }
     },
     template: `<div>
@@ -177,43 +178,135 @@ FragmentInfo = Vue.component('f-info', {
     `
 })
 
-
-Settings = Vue.component('settings', {
+Controls = Vue.component('controls',{
     data : function(){
-        return {
-            info: {
-                db_credentials : {name: "", database: "", password: ""},
-                github : {tokens :[],  langs :[]},
-                globals : {keywords : []}
-            },
-            ruleNames: [],
-            rules: {},
-            selected: "",
-            teststr: "",
+        return{
+            statuses: {"github":"unknown"},
+            polling : ''
         }
     },
     methods:{
-        getInfo: function(){
-            var requestURI = '/leaks/api/settings'
+        getTasksAvailable: function(){
+            var requestURI = "/leaks/api/task/available"
             axios.get(requestURI)
                 .then(response => {
-                    this.info = response.data
-                    console.log(this.info)
+                    if(response.status == 200){
+                        for(var i in response.data){
+                            element = response.data[i]
+                            this.statuses[element] = "unknown"
+                        }
+                    }
+                    console.log(this.statuses)
+                    this.updateStatuses()
                 })
                 .catch(error => {
                     console.log(error)
                 })
         },
-        getRules: function(){
-            var requestURI = '/leaks/api/regexp'
-            var ruleNames = []
+        updateStatuses: function(){
+            var requestURI = ""
+            for(var element in this.statuses){
+                requestURI = "/leaks/api/task/"+element+"/info"
+                axios.get(requestURI)
+                    .then(response => {
+                        if(response.status == 200){
+                            console.log("element: " + element)
+                            this.statuses[element] = response.data.toString()
+                            console.log("value: "+this.statuses[element])
+                        }
+                    })
+                    .catch(error => {
+                        console.log(error)
+                    })
+            }
+        },
+        taskManager: function(data){
+            var task = data[0]
+            var status = data[1]
+
+            console.log(data)
+
+            var requestURI = "/leaks/api/task/"+task+"/"+status
             axios.get(requestURI)
                 .then(response => {
-                    this.rules = response.data
-                    for(var i=0; i < this.rules.length;i++){
-                        ruleNames.push(this.rules[i].re)
+                    if(status == "info"){
+                        this.statuses[task] = response.data
+                    } else {
+                        requestURI = "/leaks/api/task/"+task+"/info"
+                        axios.get(requestURI)
+                            .then(response => {
+                                if(response.status == 200){
+                                    this.statuses[task] = response.data
+                                }
+                            })
+                            .catch(error => {
+                                console.log(error)
+                            })
                     }
-                    this.ruleNames = ruleNames
+                })
+                .catch(error => {
+                    console.log(error)
+                })
+        },
+    },
+    created: function() {
+        this.getTasksAvailable()
+        this.polling = setInterval(this.updateStatuses(), 15000)
+    },
+    beforeDestroy: function(){
+        clearInterval(this.polling)
+    },
+    template: `
+    <div>
+    <br/><br/><br/><br/>
+    <table>
+        <tr>
+            <td v-for="(status, task) in statuses" v-bind:key="task">
+                <h3>{{task}} ({{ status }})</h3>
+                <div class="btn-group">
+                    <button type="button" class="btn btn-outline-primary" v-on:click="taskManager([task, 'start'])"> start </button>
+                    <button type="button" class="btn btn-outline-primary" v-on:click="taskManager([task, 'stop'])"> stop </button>
+                </div>
+            </td>
+        </tr>
+    </table>
+    </div>
+    `
+})
+
+
+Settings = Vue.component('settings', {
+    data : function(){
+        return {
+            settings: {
+                db_credentials : {name: "", database: "", password: ""},
+                github : {tokens :[],  langs : { blacklist: []}},
+                globals : {keywords : {}, rules:{}}
+            },
+            selected: "",
+            checkbox: false,
+            rules:[],
+            keywords:[]
+        }
+    },
+    methods:{
+        getSettings: function(){
+            var requestURI = '/leaks/api/settings'
+            axios.get(requestURI)
+                .then(response => {
+                    this.settings = response.data
+                    for(var keyword in this.settings.globals.keywords){
+                        this.keywords.push(keyword)
+                    }
+
+                    for(var rule in this.settings.globals.rules){
+                        this.rules.push(rule)
+                    }
+
+                    console.log(this.settings)
+                    console.log(this.rules)
+                    console.log(this.keywords)
+
                 })
                 .catch(error => {
                     console.log(error)
@@ -224,13 +317,28 @@ Settings = Vue.component('settings', {
             var selected = data.selected
 
             if(itemId == 1){
-                this.info.github.tokens.push(selected)
+                this.settings.github.tokens.push(selected)
             } else if (itemId == 2){
-                this.info.github.langs.push(selected)
+                this.settings.github.langs.blacklist.push(selected)
             } else if (itemId == 3){
-                this.info.globals.keywords.push(selected)
+                var type = 0 // searchable keyword
+                if (!this.checkbox){
+                    type = 1 // inner keyword
+                }
+
+                this.keywords.push(selected)
+                this.settings.globals.keywords[selected] = {
+                    "value" : selected,
+                    "id": 0,
+                    "type":type
+                }
             } else if (itemId == 4){
-                this.createRule(selected)
+                this.rules.push(selected)
+                this.settings.globals.rules[selected]= {
+                    "rule" : selected,
+                    "name" : "regexp",
+                    "id":0,
+                }
             }
         },
         remove: function(data){
@@ -238,65 +346,57 @@ Settings = Vue.component('settings', {
             var selected = data.selected
 
             if(itemId == 1){
-                elId = this.info.github.tokens.indexOf(selected)
+                elId = this.settings.github.tokens.indexOf(selected)
                 if(elId != -1){
-                    this.info.github.tokens.splice(elId)
+                    this.settings.github.tokens.splice(elId, 1)
                 }
             } else if (itemId == 2){
-                elId = this.info.github.langs.indexOf(selected)
+                elId = this.settings.github.langs.blacklist.indexOf(selected)
                 if(elId != -1){
-                    this.info.github.langs.splice(elId)
+                    this.settings.github.langs.blacklist.splice(elId, 1)
                 }
             } else if (itemId == 3){
-                elId = this.info.globals.keywords.indexOf(selected)
+                elId = this.keywords.indexOf(selected)
+                
                 if(elId != -1){
-                    this.info.globals.keywords.splice(elId)
+                    this.keywords.splice(elId, 1)
+                    delete this.settings.globals.keywords[selected]
                 }
             } else if (itemId == 4){
-                this.removeRule(selected)
+                elId = this.rules.indexOf(selected)
+                if(elId != -1){
+                    this.rules.splice(elId, 1)
+                    delete this.settings.globals.rules[selected]
+                }
+            }
+        },
+        select: function(data){
+            var itemID = data.id
+            this.selected = data.selected
+
+            console.log(data)
+            
+            if(itemID == 3){
+                for(keyword in this.settings.globals.keywords){
+                    if(keyword == this.selected){
+                        var type = this.settings.globals.keywords[keyword].type
+                        if (type == 0){
+                            this.checkbox = true
+                        } else{
+                            this.checkbox = false
+                        }
+                    }
+                }
             }
         },
         update: function(){
-            console.log(this.info)
+            console.log(this.settings)
             var requestURI = "/leaks/api/settings"
-            axios.post(requestURI, this.info)
+            axios.post(requestURI, this.settings)
         },
-
-        createRule: function(selected){
-            var requestURI = "/leaks/api/regexp"
-            if(this.ruleNames.indexOf(selected) != -1){
-                return
-            }
-
-            axios.post(requestURI, {"re": selected, "test": this.teststr}).then(response => {
-                if(response.status == 200){
-                    this.ruleNames.push(selected)
-                } else {
-                    this.teststr = "invalid regexp"
-                }
-            })
-        },
-        removeRule: function(selected){
-            for(rule in this.rules){
-                if(selected == rule.re){
-                    var requestURI = "/leaks/api/regexp/remove/"+rule.id
-                    axios.get(requestURI, {}).then(response => {
-                        if (response.status == 200){
-                            elId = this.ruleNames.indexOf(selected)
-                            
-                            if(elId != -1){
-                                this.regexp.splice(elId)
-                            }
-                        }
-                    })
-                }
-            }
-        }
-
     },
     created : function(){
-        this.getInfo()
-        this.getRules()
+        this.getSettings()
     },
     template: "#settings-template"
 })
@@ -320,7 +420,7 @@ Fragments = Vue.component('r-fragments', {
             reportStatuses:[
                 {name: "New",    value: "0"},
                 {name: "Closed", value: "1"},
-                {name: "Verified", value: "2"},
+                {name: "Verified",    value: "2"},
                 {name: "Autoremoved", value: "3"},
             ],
             availableLimits:[10, 20, 50, 100],
@@ -500,7 +600,7 @@ const router = new VueRouter({
         {path: "/github", component:Fragments, props:{pagetype:"github"}},
         {path: "/gist",  component:Fragments, props:{pagetype:"gist"}},
         {path: "/settings",  component:Settings },
-        {path: "/controls", component:Settings },
+        {path: "/controls", component:Controls },
     ],
     mode: "history"
 })
@@ -517,6 +617,7 @@ var app = new Vue({
         'report-control' : RControl,
         'fragments' : Fragments,
         'settings' : Settings,
+        'controls' : Controls,
         'v-items' : VItems,
         'v-modal':ModalWindow,
         'f-info':FragmentInfo,

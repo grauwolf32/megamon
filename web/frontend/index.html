@@ -56,12 +56,12 @@ table.fixed { table-layout:fixed; }
             <div class="container">
                 <h3> Github Settings </h3>
                 <v-items
-                    v-bind:vitem="{name:'Tokens', data:info.github.tokens, id:1}"
+                    v-bind:vitem="{name:'Tokens', data:settings.github.tokens, id:1}"
                     v-on:add="add($event)"
                     v-on:remove="remove($event)">
                 </v-items>
                 <v-items 
-                    v-bind:vitem="{name:'Languages', data:info.github.langs, id:2}"
+                    v-bind:vitem="{name:'Languages blacklist', data:settings.github.langs.blacklist, id:2}"
                     v-on:add="add($event)"
                     v-on:remove="remove($event)">
                 </v-items>
@@ -70,17 +70,17 @@ table.fixed { table-layout:fixed; }
         <tr><td colspan="2"><h3>Global Settings</h3></td></tr>
         <td>
             <v-items 
-                v-bind:vitem="{name:'Keywords', data:info.globals.keywords, id:3}"
+                v-bind:vitem="{name:'Keywords', data:keywords, id:3}"
                 v-on:add="add($event)"
-                v-on:remove="remove($event)">
+                v-on:remove="remove($event)"
+                v-on:select="select($event)">
             </v-items>
+            searchable: 
+            <input type="checkbox" id="checkbox" v-model="checkbox" v-bind:checked="checkbox">
         </td>
         <td>
-            <label class="form-label"> Regexp test:</label>
-            <input type="text" class="form-control" v-model="teststr" placeholder="mailto:test@rambler-co.ru" aria-label="Regexp test">
-            <br>
             <v-items 
-                v-bind:vitem="{name:'Rejection rules', data:ruleNames, id:4}"
+                v-bind:vitem="{name:'Rejection rules', data:rules, id:4}"
                 v-on:add="add($event)"
                 v-on:remove="remove($event)">
             </v-items>
