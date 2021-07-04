@@ -55,8 +55,9 @@ type leakGlobalsSettings struct {
 }
 
 type webAdminSettings struct {
-	Username string `yaml:"username" json:"username"`
-	Password string `yaml:"password" json:"password"`
+	Username  string `yaml:"username" json:"username"`
+	Password  string `yaml:"password" json:"password"`
+	AuthToken string `yaml:"token" json:"token"`
 }
 
 //Settings : global instance of settings for the project

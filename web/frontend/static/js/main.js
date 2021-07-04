@@ -181,7 +181,8 @@ FragmentInfo = Vue.component('f-info', {
 Controls = Vue.component('controls',{
     data : function(){
         return{
-            statuses: {"github":"unknown"},
+            statuses: {"github":"unknown", 
+                       "gist"  :"unknown"},
             polling : ''
         }
     },
@@ -196,7 +197,6 @@ Controls = Vue.component('controls',{
                             this.statuses[element] = "unknown"
                         }
                     }
-                    console.log(this.statuses)
                     this.updateStatuses()
                 })
                 .catch(error => {
@@ -260,13 +260,15 @@ Controls = Vue.component('controls',{
     <div>
     <br/><br/><br/><br/>
     <table>
-        <tr>
-            <td v-for="(status, task) in statuses" v-bind:key="task">
+        <tr v-for="(status, task) in statuses" v-bind:key="task">
+            <td>
                 <h3>{{task}} ({{ status }})</h3>
                 <div class="btn-group">
                     <button type="button" class="btn btn-outline-primary" v-on:click="taskManager([task, 'start'])"> start </button>
                     <button type="button" class="btn btn-outline-primary" v-on:click="taskManager([task, 'stop'])"> stop </button>
                 </div>
+                <br>
+                <br>
             </td>
         </tr>
     </table>

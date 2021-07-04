@@ -6,6 +6,7 @@ import (
 	"os"
 	"runtime"
 
+	"github.com/megamon/core/leaks/gist"
 	"github.com/megamon/core/leaks/github"
 	"github.com/megamon/core/leaks/models"
 	"github.com/megamon/core/utils"
@@ -65,6 +66,7 @@ func main() {
 
 	params := make(map[string](*utils.WorkerParams))
 	params["github"] = &utils.WorkerParams{Task: github.RunGitSearch, Status: utils.TaskNotRunning}
+	params["gist"] = &utils.WorkerParams{Task: gist.RunGistStage, Status: utils.TaskNotRunning}
 
 	var b backend.Backend
 	b.Start(params)

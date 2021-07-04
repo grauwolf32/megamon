@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"regexp"
 	"strconv"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/megamon/core/leaks/fragment"
@@ -204,6 +205,9 @@ func markFragment(ctx echo.Context) (err error) {
 		}
 
 		manager.UpdateReportStatus(reportID, stage.VALIDATED)
+
+		timestamp := int(time.Now().Unix())
+		manager.UpdateReportTime(reportID, timestamp)
 		return ctx.String(200, "OK")
 	}
 
@@ -211,6 +215,8 @@ func markFragment(ctx echo.Context) (err error) {
 
 	if count == 0 {
 		manager.UpdateReportStatus(reportID, stage.CLOSED)
+		timestamp := int(time.Now().Unix())
+		manager.UpdateReportTime(reportID, timestamp)
 	}
 
 	return ctx.String(200, "OK")
@@ -354,4 +360,58 @@ func tasksAvailable(ctx echo.Context) (err error) {
 	}
 
 	return ctx.JSON(200, tasks)
+}
+
+func basicAuthRequired(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		var token string
+		authHeader := c.Request().Header.Get("Authorization")
+		if authHeader == "" {
+			return c.String(403, "Forbidden")
+		}
+
+		_, err := fmt.Sscanf(authHeader, "Token %s", &token)
+
+		if err != nil {
+			utils.ErrorLogger.Println(err.Error())
+			return c.String(400, "Invalid token")
+		}
+
+		if token != utils.Settings.AdminCredentials.AuthToken {
+			return c.String(403, "Forbidden")
+		}
+
+		return next(c)
+	}
+}
+
+func getReportedEvents(ctx echo.Context) (err error) {
+	manager := ctx.(Context).backend.DBManager
+	timestamp := ctx.QueryParam("timestamp")
+
+	_, err = strconv.Atoi(timestamp)
+	if err != nil {
+		return ctx.String(400, "Invalid timestamp")
+	}
+
+	reportTypes, err := manager.SelectReportTypes()
+	if err != nil {
+		return ctx.String(500, err.Error())
+	}
+	reports := make([]models.Report, 0, 128)
+	for _, reportType := range reportTypes {
+		typedReports, err := manager.SelectReportByStatus(reportType, stage.VALIDATED, "AND time > "+timestamp)
+		if err != nil {
+			return ctx.String(500, err.Error())
+		}
+		reports = append(reports, typedReports...)
+	}
+
+	resp := make([]byte, 0, 4096)
+	for _, event := range reports {
+		resp = append(resp, event.Data...)
+		resp = append(resp, []byte("\n")...)
+	}
+
+	return ctx.Blob(200, "application/octet-stream", resp)
 }

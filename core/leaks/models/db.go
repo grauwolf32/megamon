@@ -156,6 +156,13 @@ func (manager *Manager) UpdateReportStatus(reportID int, status string) (err err
 	return
 }
 
+//UpdateReportTime : updates timestamp
+func (manager *Manager) UpdateReportTime(reportID int, timestamp int) (err error) {
+	query := "UPDATE " + ReportTable + " SET time=$2 WHERE id=$1;"
+	_, err = manager.Database.Exec(query, reportID, timestamp)
+	return
+}
+
 //DeleteReportByID : delete reprort from db
 func (manager *Manager) DeleteReportByID(ID int) (err error) {
 	query := "DELETE FROM " + ReportTable + " WHERE id=$1;"
@@ -170,6 +177,27 @@ func (manager *Manager) SelectReportByID(ID int) (rep Report, err error) {
 	query := "SELECT id, type, status, data, shahash, time FROM " + ReportTable + " WHERE id=$1;"
 	row := manager.Database.QueryRow(query, ID)
 	err = row.Scan(&rep.ID, &rep.Type, &rep.Status, &rep.Data, &shaHashStr, &rep.Time)
+	return
+}
+
+//SelectReportTypes : select report types
+func (manager *Manager) SelectReportTypes() (types []string, err error) {
+	query := "SELECT DISTINCT type FROM " + ReportTable + ";"
+	rows, err := manager.Database.Query(query)
+	if err != nil {
+		return
+	}
+
+	types = make([]string, 0, 16)
+	defer rows.Close()
+	for rows.Next() {
+		var reportType string
+		err = rows.Scan(&reportType)
+		if err != nil {
+			return
+		}
+		types = append(types, reportType)
+	}
 	return
 }
 
