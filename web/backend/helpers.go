@@ -308,6 +308,14 @@ func validate(text string) (bool, error) {
 	return alphabetic.Match([]byte(text)), err
 }
 
+func startAllTasks(ctx echo.Context) (err error) {
+	for task := range ctx.(Context).queues {
+		wp := ctx.(Context).queues[task]
+		utils.RunTask(wp)
+	}
+	return ctx.String(200, "OK")
+}
+
 func taskManager(ctx echo.Context) (err error) {
 	task := ctx.Param("task")
 	state := ctx.Param("state")
@@ -414,4 +422,45 @@ func getReportedEvents(ctx echo.Context) (err error) {
 	}
 
 	return ctx.Blob(200, "application/octet-stream", resp)
+}
+
+func getNewReportCount(ctx echo.Context) (err error) {
+	manager := ctx.(Context).backend.DBManager
+	timestamp := ctx.QueryParam("timestamp")
+	isJSONParam := ctx.QueryParam("json")
+	isJSON := false
+
+	if isJSONParam != "" {
+		isJSON = true
+	}
+
+	_, err = strconv.Atoi(timestamp)
+	if err != nil {
+		return ctx.String(400, "Invalid timestamp")
+	}
+
+	reportTypes, err := manager.SelectReportTypes()
+	if err != nil {
+		return ctx.String(500, err.Error())
+	}
+
+	result := make(map[string]int, 10)
+	for _, reportType := range reportTypes {
+		count, err := manager.CountReports(reportType, "AND time > "+timestamp)
+		if err != nil {
+			return ctx.String(500, err.Error())
+		}
+		result[reportType] = count
+	}
+
+	if isJSON {
+		return ctx.JSON(200, result)
+	}
+
+	totalCount := 0
+	for reportType := range result {
+		totalCount += result[reportType]
+	}
+
+	return ctx.String(200, strconv.Itoa(totalCount))
 }

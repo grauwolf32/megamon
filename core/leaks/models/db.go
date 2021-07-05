@@ -238,6 +238,19 @@ func (manager *Manager) CheckReportDuplicate(ShaHash string) (exist bool, err er
 	return
 }
 
+//CountReports : return count of text fragments with defined type
+func (manager *Manager) CountReports(reportType string, extensions ...string) (count int, err error) {
+	extension := ""
+	for _, ext := range extensions {
+		extension += ext
+	}
+
+	query := "SELECT COUNT(id) FROM " + ReportTable + " WHERE type=$1" + extension + ";"
+	row := manager.Database.QueryRow(query)
+	err = row.Scan(&count)
+	return
+}
+
 //InsertRule : inser rule into db
 func (manager *Manager) InsertRule(rule RejectRule) (ID int, err error) {
 	//Verify data consistency

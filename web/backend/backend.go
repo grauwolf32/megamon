@@ -51,6 +51,7 @@ func (b *Backend) Start(p Params) {
 	e.Static("/static", "web/frontend/static/")
 
 	e.GET("/leaks/api/report/events", getReportedEvents, basicAuthRequired)
+	e.GET("/leaks/api/report/events/count", getNewReportCount, basicAuthRequired)
 	e.GET("/leaks/api/report/frags/:datatype/:status", getFragments, loginRequired)
 	e.GET("/leaks/api/report/count/:datatype/:status", getFragmentCount, loginRequired)
 	e.GET("/leaks/api/report/info/:frag_id", getFragmentInfo, loginRequired)
@@ -59,6 +60,7 @@ func (b *Backend) Start(p Params) {
 	e.GET("/leaks/api/settings", getSettings, loginRequired)
 	e.POST("/leaks/api/settings", updateSettings, loginRequired)
 
+	e.GET("/leaks/api/task/all/start", startAllTasks, basicAuthRequired)
 	e.GET("/leaks/api/task/:task/:state", taskManager, loginRequired)
 	e.GET("/leaks/api/task/available", tasksAvailable, loginRequired)
 
